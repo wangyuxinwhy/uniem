@@ -1,55 +1,23 @@
-import json
 import os
-from collections import defaultdict
 from pathlib import Path
-from typing import Annotated, Literal, Optional, cast
+from typing import Annotated, Optional, cast
 
 import typer
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration, set_seed
-from torch.utils.data import DataLoader, Dataset, RandomSampler
+from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup
 
-from uniem.data import TripletCollator
-from uniem.data_structures import TripletRecord
-from uniem.model import UniEmbeddingModelForTripletTrain
+from uniem.data import MediDataset, TripletCollator
+from uniem.model import EmbedderForTripletTrain, EmbeddingStrategy
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
 from uniem.utils import create_adamw_optimizer
 
-
-class MediDataset(Dataset):
-    def __init__(self, data_file: str | Path, batch_size: int):
-        medi_data = json.load(fp=Path(data_file).open())
-
-        self._task_records_map = defaultdict(list)
-        for record in medi_data:
-            taks_name = record['task_name']
-            record = TripletRecord(
-                text='\n'.join(record['query']),
-                text_pos='\n'.join(record['pos']),
-                text_neg='\n'.join(record['neg']),
-            )
-            self._task_records_map[taks_name].append(record)
-
-        self.batched_records = []
-        for _, v in self._task_records_map.items():
-            buffer = []
-            for i in RandomSampler(v, num_samples=(1 + len(v) // batch_size) * batch_size):
-                buffer.append(v[i])
-                if len(buffer) == batch_size:
-                    self.batched_records.append(buffer)
-                    buffer = []
-
-        self.batch_size = batch_size
-
-    def __getitem__(self, index):
-        return self.batched_records[index]
-
-    def __len__(self):
-        return len(self.batched_records)
+app = typer.Typer()
 
 
+@app.command()
 def main(
     model_name_or_path: str,
     medi_data_file: Path,
@@ -57,6 +25,7 @@ def main(
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
     use_sigmoid: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
     max_length: Annotated[int, typer.Option(rich_help_panel='Model')] = 512,
+    embedding_strategy: Annotated[EmbeddingStrategy, typer.Option(rich_help_panel='Model')] = EmbeddingStrategy.last_mean,
     # Optimizer
     lr: Annotated[float, typer.Option(rich_help_panel='Optimizer')] = 3e-5,
     weight_decay: Annotated[float, typer.Option(rich_help_panel='Optimizer')] = 1e-3,
@@ -87,7 +56,7 @@ def main(
         project_config=project_config,
         log_with=['tensorboard'] if use_tensorboard else None,
     )
-    accelerator.init_trackers(f'medi')
+    accelerator.init_trackers('medi')
 
     set_seed(seed)
     accelerator.print(f'Start with seed: {seed}')
@@ -95,7 +64,7 @@ def main(
 
     # DataLoader
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-    train_dataset = MediDataset(data_file=medi_data_file, batch_size=batch_size)
+    train_dataset = MediDataset(medi_data_file=medi_data_file, batch_size=batch_size)
     data_collator = TripletCollator(tokenizer=tokenizer, max_length=max_length)
     train_dataloader = DataLoader(
         train_dataset, batch_size=None, collate_fn=data_collator, shuffle=True, num_workers=num_workers, pin_memory=True
@@ -103,8 +72,11 @@ def main(
     train_dataloader = accelerator.prepare(train_dataloader)
 
     # Model
-    model = UniEmbeddingModelForTripletTrain(
-        model_name_or_path=model_name_or_path, temperature=temperature, use_sigmoid=use_sigmoid
+    model = EmbedderForTripletTrain(
+        model_name_or_path=model_name_or_path,
+        temperature=temperature,
+        use_sigmoid=use_sigmoid,
+        embedding_strategy=embedding_strategy,
     )
     model.embedding_model.encoder.config.pad_token_id = tokenizer.pad_token_id
     model = accelerator.prepare(model)
@@ -140,11 +112,11 @@ def main(
     accelerator.print('Training finished')
 
     accelerator.print('Saving model')
-    unwrapped_model = cast(UniEmbeddingModelForTripletTrain, accelerator.unwrap_model(model))
+    unwrapped_model = cast(EmbedderForTripletTrain, accelerator.unwrap_model(model))
 
     unwrapped_model.embedding_model.save_pretrained(output_dir / 'model')
     tokenizer.save_pretrained(output_dir / 'model')
 
 
 if __name__ == '__main__':
-    typer.run(main)
+    app()

@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from tests import FIXTURES_DIR
-from uniem.model import MeanPooler, UniEmbeddingModelForPairTrain, UniEmbeddingModelForTripletTrain, creat_mask_from_input_ids
+from uniem.model import EmbedderForPairTrain, EmbedderForTripletTrain, creat_mask_from_input_ids, mean_pooling
 
 
 def test_creat_mask_from_input_ids():
@@ -28,8 +28,7 @@ def test_creat_mask_from_input_ids():
     )
 
 
-def test_mean_pooler():
-    pooler = MeanPooler()
+def test_mean_pooling():
     hidden_states = torch.tensor(
         [
             [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
@@ -45,7 +44,7 @@ def test_mean_pooler():
         dtype=torch.bool,
     )
 
-    pooled = pooler(hidden_states, mask)
+    pooled = mean_pooling(hidden_states, mask)
 
     assert torch.allclose(
         pooled,
@@ -61,7 +60,7 @@ def test_mean_pooler():
 
 @pytest.mark.parametrize('use_sigmoid', [True, False])
 def test_uniem_triplet_model(use_sigmoid: bool):
-    model = UniEmbeddingModelForTripletTrain(
+    model = EmbedderForTripletTrain(
         model_name_or_path=str(FIXTURES_DIR / 'model'),
         temperature=0.05,
         use_sigmoid=use_sigmoid,
@@ -83,7 +82,7 @@ def test_uniem_triplet_model(use_sigmoid: bool):
 
 @pytest.mark.parametrize('use_sigmoid', [True, False])
 def test_uniem_pair_model(use_sigmoid: bool):
-    model = UniEmbeddingModelForPairTrain(
+    model = EmbedderForPairTrain(
         model_name_or_path=str(FIXTURES_DIR / 'model'),
         temperature=0.05,
         use_sigmoid=use_sigmoid,
