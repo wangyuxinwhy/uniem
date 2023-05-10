@@ -69,12 +69,12 @@ def main(
     save_on_epoch_end: Annotated[bool, typer.Option(rich_help_panel='Trainer')] = False,
     num_max_checkpoints: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 1,
     use_tensorboard: Annotated[bool, typer.Option(rich_help_panel='Trainer')] = False,
-    num_workers: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 4,
+    num_workers: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 0,
     seed: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 42,
     output_dir: Annotated[Optional[Path], typer.Option(rich_help_panel='Trainer')] = None,
 ):
     os.environ.setdefault('TRANSFORMERS_NO_ADVISORY_WARNINGS', '1')
-    if num_workers > 1:
+    if num_workers >= 1:
         os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
 
     output_dir = output_dir or Path('experiments') / 'medi'
@@ -106,6 +106,7 @@ def main(
     model = UniEmbeddingModelForTripletTrain(
         model_name_or_path=model_name_or_path, temperature=temperature, use_sigmoid=use_sigmoid
     )
+    model.embedding_model.encoder.config.pad_token_id = tokenizer.pad_token_id
     model = accelerator.prepare(model)
 
     # Optimizer & LRScheduler
