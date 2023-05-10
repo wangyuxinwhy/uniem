@@ -105,50 +105,70 @@ embedder_map = {
 }
 
 
-class EmbedderForPairTrain(torch.nn.Module):
+class EmbedderForTrain(torch.nn.Module):
+    def __init__(self, embedder: Embedder, chunk_size: int = 8):
+        super().__init__()
+        self.embedder = embedder
+        self.chunk_size = chunk_size
+
+    def chunk_embedder_forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+        num_chunks = (input_ids.size(0) // self.chunk_size) + 1
+        if num_chunks <= 1:
+            return self.embedder(input_ids)
+
+        chunks = torch.chunk(input_ids, num_chunks, dim=0)
+        embeddings = [self.embedder(chunk) for chunk in chunks]
+        embeddings = torch.cat(embeddings, dim=0)
+        return embeddings
+
+
+class EmbedderForPairTrain(EmbedderForTrain):
     def __init__(
         self,
         model_name_or_path: str,
         temperature: float = 0.05,
         use_sigmoid: bool = False,
         embedding_strategy: EmbeddingStrategy | str = EmbeddingStrategy.last_mean,
+        chunk_size: int = 8,
     ):
-        super().__init__()
         pretrained_model = AutoModel.from_pretrained(model_name_or_path)
-        self.embedding_model = embedder_map[EmbeddingStrategy(embedding_strategy)](pretrained_model)
+        embedder = embedder_map[EmbeddingStrategy(embedding_strategy)](pretrained_model)
+        super().__init__(embedder, chunk_size)
         if use_sigmoid:
             self.criterion = PairSigmoidContrastLoss(temperature)
         else:
             self.criterion = PairSoftmaxContrastLoss(temperature)
 
     def forward(self, text_ids: torch.Tensor, text_pos_ids: torch.Tensor) -> dict[str, torch.Tensor]:
-        text_embeddings = self.embedding_model(text_ids)
-        text_pos_embeddings = self.embedding_model(text_pos_ids)
+        text_embeddings = self.embedder(text_ids)
+        text_pos_embeddings = self.embedder(text_pos_ids)
         loss = self.criterion(text_embeddings, text_pos_embeddings)
         return {'loss': loss}
 
 
-class EmbedderForTripletTrain(torch.nn.Module):
+class EmbedderForTripletTrain(EmbedderForTrain):
     def __init__(
         self,
         model_name_or_path: str,
         temperature: float = 0.05,
         use_sigmoid: bool = False,
         embedding_strategy: EmbeddingStrategy | str = EmbeddingStrategy.last_mean,
+        chunk_size: int = 8,
     ):
-        super().__init__()
         pretrained_model = AutoModel.from_pretrained(model_name_or_path)
-        self.embedding_model = embedder_map[EmbeddingStrategy(embedding_strategy)](pretrained_model)
+        embedder = embedder_map[EmbeddingStrategy(embedding_strategy)](pretrained_model)
+        super().__init__(embedder, chunk_size)
         if use_sigmoid:
             self.criterion = TripletSigmoidContrastLoss(temperature)
         else:
             self.criterion = TripletSoftmaxContrastLoss(temperature)
+        self.chunk_size = chunk_size
 
     def forward(
         self, text_ids: torch.Tensor, text_pos_ids: torch.Tensor, text_neg_ids: torch.Tensor
     ) -> dict[str, torch.Tensor]:
-        text_embeddings = self.embedding_model(text_ids)
-        text_pos_embeddings = self.embedding_model(text_pos_ids)
-        text_neg_embeddings = self.embedding_model(text_neg_ids)
+        text_embeddings = self.chunk_embedder_forward(text_ids)
+        text_pos_embeddings = self.chunk_embedder_forward(text_pos_ids)
+        text_neg_embeddings = self.chunk_embedder_forward(text_neg_ids)
         loss = self.criterion(text_embeddings, text_pos_embeddings, text_neg_embeddings)
         return {'loss': loss}

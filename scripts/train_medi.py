@@ -25,6 +25,7 @@ def main(
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
     use_sigmoid: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
     max_length: Annotated[int, typer.Option(rich_help_panel='Model')] = 512,
+    chunk_size: Annotated[int, typer.Option(rich_help_panel='Model')] = 8,
     embedding_strategy: Annotated[EmbeddingStrategy, typer.Option(rich_help_panel='Model')] = EmbeddingStrategy.last_mean,
     # Optimizer
     lr: Annotated[float, typer.Option(rich_help_panel='Optimizer')] = 3e-5,
@@ -77,8 +78,9 @@ def main(
         temperature=temperature,
         use_sigmoid=use_sigmoid,
         embedding_strategy=embedding_strategy,
+        chunk_size=chunk_size,
     )
-    model.embedding_model.encoder.config.pad_token_id = tokenizer.pad_token_id
+    model.embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
     model = accelerator.prepare(model)
 
     # Optimizer & LRScheduler
@@ -114,7 +116,7 @@ def main(
     accelerator.print('Saving model')
     unwrapped_model = cast(EmbedderForTripletTrain, accelerator.unwrap_model(model))
 
-    unwrapped_model.embedding_model.save_pretrained(output_dir / 'model')
+    unwrapped_model.embedder.save_pretrained(output_dir / 'model')
     tokenizer.save_pretrained(output_dir / 'model')
 
 

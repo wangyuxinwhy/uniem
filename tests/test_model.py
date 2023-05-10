@@ -60,7 +60,10 @@ def test_mean_pooling():
 
 @pytest.mark.parametrize('use_sigmoid', [True, False])
 def test_uniem_triplet_model(use_sigmoid: bool):
-    model = EmbedderForTripletTrain(
+    model1 = EmbedderForTripletTrain(
+        model_name_or_path=str(FIXTURES_DIR / 'model'), temperature=0.05, use_sigmoid=use_sigmoid, chunk_size=1
+    )
+    model2 = EmbedderForTripletTrain(
         model_name_or_path=str(FIXTURES_DIR / 'model'),
         temperature=0.05,
         use_sigmoid=use_sigmoid,
@@ -76,8 +79,10 @@ def test_uniem_triplet_model(use_sigmoid: bool):
         ),
     }
 
-    loss = model(**records)
-    assert loss is not None
+    loss1 = model1(**records)['loss']
+    loss2 = model2(**records)['loss']
+    assert isinstance(loss1, torch.Tensor)
+    assert torch.allclose(loss1, loss2)
 
 
 @pytest.mark.parametrize('use_sigmoid', [True, False])
@@ -92,5 +97,5 @@ def test_uniem_pair_model(use_sigmoid: bool):
         'text_pos_ids': torch.tensor([[101, 2769, 1599, 3614, 3580, 2094, 102], [101, 2769, 1599, 3614, 5074, 4413, 102]]),
     }
 
-    loss = model(**records)
-    assert loss is not None
+    loss = model(**records)['loss']
+    assert isinstance(loss, torch.Tensor)
