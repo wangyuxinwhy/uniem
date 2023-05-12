@@ -1,5 +1,6 @@
 from enum import Enum
 from pathlib import Path
+from typing import ClassVar, Type
 
 import torch
 from transformers import AutoModel, PreTrainedModel
@@ -30,10 +31,16 @@ def mean_pooling(hidden_state: torch.Tensor, mask: torch.Tensor | None = None) -
     return torch.sum(hidden_state * mask.unsqueeze(-1), dim=1) / torch.sum(mask, dim=-1, keepdim=True)
 
 
+StrategyEmbedderClsMap: dict[EmbeddingStrategy, Type['Embedder']] = {}
+
+
 class Embedder(torch.nn.Module):
+    embedding_strategy: ClassVar[EmbeddingStrategy]
+
     def __init__(self, encoder: PreTrainedModel, pad_token_id: int | None = None):
         super().__init__()
         self.encoder = encoder
+        self.encoder.config.uniem_embedding_strategy = str(self.embedding_strategy.value)
 
         if pad_token_id is None:
             if encoder.config.pad_token_id is not None:
@@ -42,6 +49,9 @@ class Embedder(torch.nn.Module):
                 self.pad_token_id = 0
         else:
             self.pad_token_id = pad_token_id
+
+    def __init_subclass__(cls) -> None:
+        StrategyEmbedderClsMap[cls.embedding_strategy] = cls
 
     def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         raise NotImplementedError
@@ -56,6 +66,8 @@ class Embedder(torch.nn.Module):
 
 
 class LastMeanEmbedder(Embedder):
+    embedding_strategy: ClassVar[EmbeddingStrategy] = EmbeddingStrategy.last_mean
+
     def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         if mask is None:
             mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
@@ -65,6 +77,8 @@ class LastMeanEmbedder(Embedder):
 
 
 class ClsEmbedder(Embedder):
+    embedding_strategy: ClassVar[EmbeddingStrategy] = EmbeddingStrategy.cls
+
     def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         if mask is None:
             mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
@@ -73,6 +87,8 @@ class ClsEmbedder(Embedder):
 
 
 class FirstLastEmbedder(Embedder):
+    embedding_strategy: ClassVar[EmbeddingStrategy] = EmbeddingStrategy.first_last_mean
+
     def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         if mask is None:
             mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
@@ -84,6 +100,8 @@ class FirstLastEmbedder(Embedder):
 
 
 class EmbeddingLastEmbedder(Embedder):
+    embedding_strategy: ClassVar[EmbeddingStrategy] = EmbeddingStrategy.embedding_last_mean
+
     def __init__(self, encoder: PreTrainedModel, pad_token_id: int | None = None):
         super().__init__(encoder, pad_token_id)
         self.embedding_layer = self.encoder.get_input_embeddings()
@@ -97,12 +115,12 @@ class EmbeddingLastEmbedder(Embedder):
         return (mean_last_embeddings + mean_static_embeddings) / 2
 
 
-embedder_map = {
-    EmbeddingStrategy.cls: ClsEmbedder,
-    EmbeddingStrategy.last_mean: LastMeanEmbedder,
-    EmbeddingStrategy.first_last_mean: FirstLastEmbedder,
-    EmbeddingStrategy.embedding_last_mean: EmbeddingLastEmbedder,
-}
+class AutoEmbedder:
+    @classmethod
+    def from_pretrained(cls, path: str | Path):
+        encoder = AutoModel.from_pretrained(path)
+        embedder_cls = StrategyEmbedderClsMap[EmbeddingStrategy(encoder.config.uniem_embedding_strategy)]
+        return embedder_cls(encoder)
 
 
 class EmbedderForTrain(torch.nn.Module):
@@ -132,7 +150,7 @@ class EmbedderForPairTrain(EmbedderForTrain):
         chunk_size: int = 8,
     ):
         pretrained_model = AutoModel.from_pretrained(model_name_or_path)
-        embedder = embedder_map[EmbeddingStrategy(embedding_strategy)](pretrained_model)
+        embedder = StrategyEmbedderClsMap[EmbeddingStrategy(embedding_strategy)](pretrained_model)
         super().__init__(embedder, chunk_size)
         if use_sigmoid:
             self.criterion = PairSigmoidContrastLoss(temperature)
@@ -156,7 +174,7 @@ class EmbedderForTripletTrain(EmbedderForTrain):
         chunk_size: int = 8,
     ):
         pretrained_model = AutoModel.from_pretrained(model_name_or_path)
-        embedder = embedder_map[EmbeddingStrategy(embedding_strategy)](pretrained_model)
+        embedder = StrategyEmbedderClsMap[EmbeddingStrategy(embedding_strategy)](pretrained_model)
         super().__init__(embedder, chunk_size)
         if use_sigmoid:
             self.criterion = TripletSigmoidContrastLoss(temperature)

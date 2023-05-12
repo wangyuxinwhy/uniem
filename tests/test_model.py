@@ -2,7 +2,15 @@ import pytest
 import torch
 
 from tests import FIXTURES_DIR
-from uniem.model import EmbedderForPairTrain, EmbedderForTripletTrain, creat_mask_from_input_ids, mean_pooling
+from uniem.model import (
+    AutoEmbedder,
+    EmbedderForPairTrain,
+    EmbedderForTripletTrain,
+    FirstLastEmbedder,
+    LastMeanEmbedder,
+    creat_mask_from_input_ids,
+    mean_pooling,
+)
 
 
 def test_creat_mask_from_input_ids():
@@ -99,3 +107,14 @@ def test_uniem_pair_model(use_sigmoid: bool):
 
     loss = model(**records)['loss']
     assert isinstance(loss, torch.Tensor)
+
+
+@pytest.mark.parametrize('embedder_cls', [LastMeanEmbedder, FirstLastEmbedder])
+def test_auto_embedder(transformers_model, tmpdir, embedder_cls):
+    embedder = embedder_cls(transformers_model)
+
+    embedder.save_pretrained(tmpdir)
+    new_embedder = AutoEmbedder.from_pretrained(tmpdir)
+
+    assert isinstance(new_embedder, embedder_cls)
+    assert torch.allclose(embedder(torch.tensor([[1, 2, 3]])), new_embedder(torch.tensor([[1, 2, 3]])))
