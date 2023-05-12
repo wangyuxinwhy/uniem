@@ -163,3 +163,4 @@ cython_debug/
 dataset/
 playground.ipynb
 .vscode/
+results/

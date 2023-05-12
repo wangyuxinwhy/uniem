@@ -127,7 +127,6 @@ def test_uni_embedder():
 
     embeddings = uni_embdder.encode(sentences)
 
-    assert len(embeddings) == 2
-    assert isinstance(embeddings[0], torch.Tensor)
-    assert not torch.allclose(embeddings[0], embeddings[1])
-    assert torch.allclose(embeddings[0], embeddings[2])
+    assert len(embeddings) == 3
+    assert not torch.allclose(torch.from_numpy(embeddings[0]), torch.from_numpy(embeddings[1]))
+    assert torch.allclose(torch.from_numpy(embeddings[0]), torch.from_numpy(embeddings[2]))

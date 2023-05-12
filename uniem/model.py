@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import ClassVar, Generator, Iterable, Type, TypeVar, cast
 
 import torch
+import numpy as np
 from transformers import AutoConfig, AutoModel, AutoTokenizer, PreTrainedModel
 
 from uniem.criteria import (
@@ -226,7 +227,7 @@ class UniEmbedder:
         return self.encode(sentences, batch_size)
 
     def encode(self, sentences: list[str], batch_size: int = 32):
-        embeddings: list[torch.Tensor] = []
+        embeddings: list[np.ndarray] = []
         for batch in generate_batch(sentences, batch_size):
             input_ids = self.tokenizer(batch, padding=True, truncation=True, return_tensors='pt')['input_ids']
             input_ids = cast(torch.Tensor, input_ids)
@@ -234,7 +235,7 @@ class UniEmbedder:
             with torch.inference_mode():
                 batch_embeddings = self.embedder(input_ids)
                 batch_embeddings = cast(torch.Tensor, batch_embeddings)
-            embeddings.extend([i.cpu() for i in batch_embeddings])
+            embeddings.extend([i.cpu().numpy() for i in batch_embeddings])
         return embeddings
 
     @classmethod

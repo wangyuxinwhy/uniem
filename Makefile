@@ -5,5 +5,5 @@ test:
 
 .PHONY : lint
 lint:
-	ruff check --fix .
 	blue -l 128 .
+	ruff check --fix .
