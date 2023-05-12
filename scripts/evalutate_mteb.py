@@ -1,12 +1,14 @@
 """Example script for benchmarking all datasets constituting the MTEB English leaderboard & average scores"""
 
+import os
 import logging
+from pathlib import Path
 
 import typer
 from mteb import MTEB
 from uniem import UniEmbedder
 
-
+os.environ['TOKENIZERS_PARALLELISM']='false'
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
