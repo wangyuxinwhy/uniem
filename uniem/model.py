@@ -1,10 +1,11 @@
 from enum import Enum
 from itertools import islice
 from pathlib import Path
-from typing import ClassVar, Generator, Iterable, Type, TypeVar, cast
+from typing import ClassVar, Generator, Iterable, Literal, Type, TypeVar, cast
 
 import torch
 import numpy as np
+import tqdm
 from transformers import AutoConfig, AutoModel, AutoTokenizer, PreTrainedModel
 
 from uniem.criteria import (
@@ -215,6 +216,8 @@ def generate_batch(data: Iterable[T], batch_size: int = 32) -> Generator[list[T]
 
 
 class UniEmbedder:
+    PROGRESS_BAR_THRESHOLD = 1000
+
     def __init__(self, embedder: Embedder, tokenizer: Tokenizer, max_legnth: int | None = None, device: str | None = None):
         super().__init__()
         self.embedder = embedder.eval()
@@ -226,9 +229,18 @@ class UniEmbedder:
     def __call__(self, sentences: list[str], batch_size: int = 32):
         return self.encode(sentences, batch_size)
 
-    def encode(self, sentences: list[str], batch_size: int = 32):
+    def encode(self, sentences: list[str], batch_size: int = 32, progress_bar: Literal['auto'] | bool = 'auto'):
         embeddings: list[np.ndarray] = []
-        for batch in generate_batch(sentences, batch_size):
+        if progress_bar == 'auto':
+            progress_bar = len(sentences) > self.PROGRESS_BAR_THRESHOLD
+
+        for batch in tqdm.tqdm(
+            generate_batch(sentences, batch_size),
+            disable=not progress_bar,
+            total=len(sentences) // batch_size,
+            unit='batch',
+            desc='Encoding',
+        ):
             input_ids = self.tokenizer(batch, padding=True, truncation=True, return_tensors='pt')['input_ids']
             input_ids = cast(torch.Tensor, input_ids)
             input_ids = input_ids.to(self.embedder.encoder.device)
@@ -237,6 +249,9 @@ class UniEmbedder:
                 batch_embeddings = cast(torch.Tensor, batch_embeddings)
             embeddings.extend([i.cpu().numpy() for i in batch_embeddings])
         return embeddings
+
+    def encode_single(self, sentence: str):
+        return self.encode([sentence])[0]
 
     @classmethod
     def from_pretrained(cls, model_name_or_path: str, max_legnth: int | None = None, device: str | None = None):

@@ -1,7 +1,18 @@
 # uniem
 unified embedding model
 
-## Usage
+# Usage
+
+```python
+from uniem import UniEmbedder
+
+
+sentences = ['Hello, World!', '你好，世界！']
+embedder = UniEmbedder()
+embeddings = embedder(sentences)
+```
+
+## Train Your Model
 
 1. create virtual environment
 ```bash
