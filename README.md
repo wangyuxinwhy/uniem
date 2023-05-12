@@ -1,15 +1,20 @@
 # uniem
 unified embedding model
 
-# Usage
+
+## Install
+
+```
+pip install uniem
+```
+
+## Usage
 
 ```python
 from uniem import UniEmbedder
 
-
-sentences = ['Hello, World!', '你好，世界！']
-embedder = UniEmbedder()
-embeddings = embedder(sentences)
+embedder = UniEmbedder.from_pretrained('uniem/base-softmax-last-mean')
+embeddings = embedder.encode(['Hello World!', '你好,世界!'])
 ```
 
 ## Train Your Model
