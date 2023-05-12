@@ -37,6 +37,17 @@ def mean_pooling(hidden_state: torch.Tensor, mask: torch.Tensor | None = None) -
     return torch.sum(hidden_state * mask.unsqueeze(-1), dim=1) / torch.sum(mask, dim=-1, keepdim=True)
 
 
+def load_hf_pretrained_model(model_name_or_path: str) -> PreTrainedModel:
+        config = AutoConfig.from_pretrained(model_name_or_path)
+        if config.model_type == 't5':
+            from transformers import T5EncoderModel
+
+            pretrained_model = T5EncoderModel.from_pretrained(model_name_or_path)
+        else:
+            pretrained_model = AutoModel.from_pretrained(model_name_or_path)
+        return pretrained_model
+
+
 StrategyEmbedderClsMap: dict[EmbeddingStrategy, Type['Embedder']] = {}
 
 
@@ -66,8 +77,8 @@ class Embedder(torch.nn.Module):
         self.encoder.save_pretrained(path)
 
     @classmethod
-    def from_pretrained(cls, path: str | Path):
-        encoder = AutoModel.from_pretrained(path)
+    def from_pretrained(cls, model_name_or_path: str):
+        encoder = load_hf_pretrained_model(model_name_or_path)
         return cls(encoder)
 
     @property
@@ -127,15 +138,8 @@ class EmbeddingLastEmbedder(Embedder):
 
 class AutoEmbedder:
     @classmethod
-    def from_pretrained(cls, path: str | Path):
-        config = AutoConfig.from_pretrained(path)
-        if config.model_type == 't5':
-            from transformers import T5EncoderModel
-
-            encoder = T5EncoderModel.from_pretrained(path)
-        else:
-            encoder = AutoModel.from_pretrained(path)
-        encoder = cast(PreTrainedModel, encoder)
+    def from_pretrained(cls, model_name_or_path: str | Path):
+        encoder = load_hf_pretrained_model(model_name_or_path)
         embedder_cls = StrategyEmbedderClsMap[EmbeddingStrategy(encoder.config.uniem_embedding_strategy)]
         return embedder_cls(encoder)
 
@@ -166,7 +170,7 @@ class EmbedderForPairTrain(EmbedderForTrain):
         embedding_strategy: EmbeddingStrategy | str = EmbeddingStrategy.last_mean,
         chunk_size: int = 8,
     ):
-        pretrained_model = AutoModel.from_pretrained(model_name_or_path)
+        pretrained_model = load_hf_pretrained_model(model_name_or_path)
         embedder = StrategyEmbedderClsMap[EmbeddingStrategy(embedding_strategy)](pretrained_model)
         super().__init__(embedder, chunk_size)
         if use_sigmoid:
@@ -190,7 +194,7 @@ class EmbedderForTripletTrain(EmbedderForTrain):
         embedding_strategy: EmbeddingStrategy | str = EmbeddingStrategy.last_mean,
         chunk_size: int = 8,
     ):
-        pretrained_model = AutoModel.from_pretrained(model_name_or_path)
+        pretrained_model = load_hf_pretrained_model(model_name_or_path)
         embedder = StrategyEmbedderClsMap[EmbeddingStrategy(embedding_strategy)](pretrained_model)
         super().__init__(embedder, chunk_size)
         if use_sigmoid:
@@ -202,9 +206,9 @@ class EmbedderForTripletTrain(EmbedderForTrain):
     def forward(
         self, text_ids: torch.Tensor, text_pos_ids: torch.Tensor, text_neg_ids: torch.Tensor
     ) -> dict[str, torch.Tensor]:
-        text_embeddings = self.chunk_embedder_forward(text_ids)
-        text_pos_embeddings = self.chunk_embedder_forward(text_pos_ids)
-        text_neg_embeddings = self.chunk_embedder_forward(text_neg_ids)
+        text_embeddings = self.embedder(text_ids)
+        text_pos_embeddings = self.embedder(text_pos_ids)
+        text_neg_embeddings = self.embedder(text_neg_ids)
         loss = self.criterion(text_embeddings, text_pos_embeddings, text_neg_embeddings)
         return {'loss': loss}
 
