@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import ClassVar, Generator, Iterable, Type, TypeVar, cast
 
 import torch
-from transformers import AutoModel, AutoTokenizer, PreTrainedModel
+from transformers import AutoConfig, AutoModel, AutoTokenizer, PreTrainedModel
 
 from uniem.criteria import (
     PairSigmoidContrastLoss,
@@ -126,7 +126,14 @@ class EmbeddingLastEmbedder(Embedder):
 class AutoEmbedder:
     @classmethod
     def from_pretrained(cls, path: str | Path):
-        encoder = AutoModel.from_pretrained(path)
+        config = AutoConfig.from_pretrained(path)
+        if config.model_type == 't5':
+            from transformers import T5EncoderModel
+
+            encoder = T5EncoderModel.from_pretrained(path)
+        else:
+            encoder = AutoModel.from_pretrained(path)
+        encoder = cast(PreTrainedModel, encoder)
         embedder_cls = StrategyEmbedderClsMap[EmbeddingStrategy(encoder.config.uniem_embedding_strategy)]
         return embedder_cls(encoder)
 

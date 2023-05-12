@@ -5,6 +5,5 @@ test:
 
 .PHONY : lint
 lint:
-	isort .
-	blue -l 128 .
 	ruff check --fix .
+	blue -l 128 .

@@ -123,10 +123,11 @@ def test_auto_embedder(transformers_model, tmpdir, embedder_cls):
 
 def test_uni_embedder():
     uni_embdder = UniEmbedder.from_pretrained(str(FIXTURES_DIR / 'model'))
-    sentences = ['祖国万岁', 'Long live the motherland']
+    sentences = ['祖国万岁', 'Long live the motherland', '祖国万岁']
 
     embeddings = uni_embdder.encode(sentences)
 
     assert len(embeddings) == 2
     assert isinstance(embeddings[0], torch.Tensor)
     assert not torch.allclose(embeddings[0], embeddings[1])
+    assert torch.allclose(embeddings[0], embeddings[2])
