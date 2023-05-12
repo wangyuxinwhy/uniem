@@ -8,6 +8,7 @@ from uniem.model import (
     EmbedderForTripletTrain,
     FirstLastEmbedder,
     LastMeanEmbedder,
+    UniEmbedder,
     creat_mask_from_input_ids,
     mean_pooling,
 )
@@ -118,3 +119,14 @@ def test_auto_embedder(transformers_model, tmpdir, embedder_cls):
 
     assert isinstance(new_embedder, embedder_cls)
     assert torch.allclose(embedder(torch.tensor([[1, 2, 3]])), new_embedder(torch.tensor([[1, 2, 3]])))
+
+
+def test_uni_embedder():
+    uni_embdder = UniEmbedder.from_pretrained(str(FIXTURES_DIR / 'model'))
+    sentences = ['祖国万岁', 'Long live the motherland']
+
+    embeddings = uni_embdder.encode(sentences)
+
+    assert len(embeddings) == 2
+    assert isinstance(embeddings[0], torch.Tensor)
+    assert not torch.allclose(embeddings[0], embeddings[1])

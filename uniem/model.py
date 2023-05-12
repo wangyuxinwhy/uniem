@@ -1,9 +1,10 @@
 from enum import Enum
+from itertools import islice
 from pathlib import Path
-from typing import ClassVar, Type
+from typing import ClassVar, Generator, Iterable, Type, TypeVar, cast
 
 import torch
-from transformers import AutoModel, PreTrainedModel
+from transformers import AutoModel, AutoTokenizer, PreTrainedModel
 
 from uniem.criteria import (
     PairSigmoidContrastLoss,
@@ -11,6 +12,9 @@ from uniem.criteria import (
     TripletSigmoidContrastLoss,
     TripletSoftmaxContrastLoss,
 )
+from uniem.types import Tokenizer
+
+T = TypeVar('T')
 
 
 class EmbeddingStrategy(str, Enum):
@@ -63,6 +67,10 @@ class Embedder(torch.nn.Module):
     def from_pretrained(cls, path: str | Path):
         encoder = AutoModel.from_pretrained(path)
         return cls(encoder)
+
+    @property
+    def max_length(self):
+        return self.encoder.config.max_position_embeddings
 
 
 class LastMeanEmbedder(Embedder):
@@ -190,3 +198,46 @@ class EmbedderForTripletTrain(EmbedderForTrain):
         text_neg_embeddings = self.chunk_embedder_forward(text_neg_ids)
         loss = self.criterion(text_embeddings, text_pos_embeddings, text_neg_embeddings)
         return {'loss': loss}
+
+
+def generate_batch(data: Iterable[T], batch_size: int = 32) -> Generator[list[T], None, None]:
+    iterator = iter(data)
+    while batch := list(islice(iterator, batch_size)):
+        yield batch
+
+
+class UniEmbedder:
+    def __init__(self, embedder: Embedder, tokenizer: Tokenizer, max_legnth: int | None = None, device: str | None = None):
+        super().__init__()
+        self.embedder = embedder
+        if device:
+            self.embedder = self.embedder.to(device)
+        self.tokenizer = tokenizer
+        self.max_length = max_legnth or self.tokenizer.model_max_length
+
+    def __call__(self, sentences: list[str], batch_size: int = 32):
+        return self.encode(sentences, batch_size)
+
+    def encode(self, sentences: list[str], batch_size: int = 32):
+        embeddings: list[torch.Tensor] = []
+        for batch in generate_batch(sentences, batch_size):
+            input_ids = self.tokenizer(batch, padding=True, truncation=True, return_tensors='pt')['input_ids']
+            input_ids = cast(torch.Tensor, input_ids)
+            input_ids = input_ids.to(self.embedder.encoder.device)
+            with torch.inference_mode():
+                batch_embeddings = self.embedder(input_ids)
+                batch_embeddings = cast(torch.Tensor, batch_embeddings)
+            embeddings.extend([i.cpu() for i in batch_embeddings])
+        return embeddings
+
+    @classmethod
+    def from_pretrained(cls, model_name_or_path: str, max_legnth: int | None = None, device: str | None = None):
+        encoder = AutoEmbedder.from_pretrained(model_name_or_path)
+        tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        return cls(encoder, tokenizer, max_legnth=max_legnth, device=device)
+
+    def save_pretrained(self, ouptut_dir: str):
+        self.embedder.save_pretrained(ouptut_dir)
+        self.tokenizer.save_pretrained(ouptut_dir)

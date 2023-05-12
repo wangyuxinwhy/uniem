@@ -22,5 +22,6 @@
   "transformers_version": "4.19.2",
   "type_vocab_size": 2,
   "use_cache": true,
-  "vocab_size": 21128
+  "vocab_size": 21128,
+  "uniem_embedding_strategy": "last_mean"
 }
