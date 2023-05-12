@@ -110,8 +110,7 @@ TASK_LIST = (
 
 def evaluate(uniem_model_name_or_path: str, output_dir: str | None = None):
 
-    model_name = 'average_word_embeddings_komninos'
-    model = UniEmbedder.from_pretrained(model_name)
+    model = UniEmbedder.from_pretrained(uniem_model_name_or_path)
     output_dir = output_dir or f'results/{uniem_model_name_or_path.split("/")[-1]}'
 
     for task in TASK_LIST:
