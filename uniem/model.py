@@ -209,7 +209,7 @@ def generate_batch(data: Iterable[T], batch_size: int = 32) -> Generator[list[T]
 class UniEmbedder:
     def __init__(self, embedder: Embedder, tokenizer: Tokenizer, max_legnth: int | None = None, device: str | None = None):
         super().__init__()
-        self.embedder = embedder
+        self.embedder = embedder.eval()
         if device:
             self.embedder = self.embedder.to(device)
         self.tokenizer = tokenizer
