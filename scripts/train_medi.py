@@ -25,8 +25,8 @@ def main(
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
     use_sigmoid: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
     max_length: Annotated[int, typer.Option(rich_help_panel='Model')] = 512,
-    chunk_size: Annotated[int, typer.Option(rich_help_panel='Model')] = 8,
     embedding_strategy: Annotated[EmbeddingStrategy, typer.Option(rich_help_panel='Model')] = EmbeddingStrategy.last_mean,
+    add_swap_loss: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
     # Optimizer
     lr: Annotated[float, typer.Option(rich_help_panel='Optimizer')] = 3e-5,
     weight_decay: Annotated[float, typer.Option(rich_help_panel='Optimizer')] = 1e-3,
@@ -78,7 +78,7 @@ def main(
         temperature=temperature,
         use_sigmoid=use_sigmoid,
         embedding_strategy=embedding_strategy,
-        chunk_size=chunk_size,
+        add_swap_loss=add_swap_loss,
     )
     model.embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
     model = accelerator.prepare(model)

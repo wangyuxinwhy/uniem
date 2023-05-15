@@ -69,9 +69,7 @@ def test_mean_pooling():
 
 @pytest.mark.parametrize('use_sigmoid', [True, False])
 def test_uniem_triplet_model(use_sigmoid: bool):
-    model1 = EmbedderForTripletTrain(
-        model_name_or_path=str(FIXTURES_DIR / 'model'), temperature=0.05, use_sigmoid=use_sigmoid, chunk_size=1
-    )
+    model1 = EmbedderForTripletTrain(model_name_or_path=str(FIXTURES_DIR / 'model'), temperature=0.05, use_sigmoid=use_sigmoid)
     model2 = EmbedderForTripletTrain(
         model_name_or_path=str(FIXTURES_DIR / 'model'),
         temperature=0.05,

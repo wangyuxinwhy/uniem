@@ -38,14 +38,14 @@ def mean_pooling(hidden_state: torch.Tensor, mask: torch.Tensor | None = None) -
 
 
 def load_hf_pretrained_model(model_name_or_path: str) -> PreTrainedModel:
-        config = AutoConfig.from_pretrained(model_name_or_path)
-        if config.model_type == 't5':
-            from transformers import T5EncoderModel
+    config = AutoConfig.from_pretrained(model_name_or_path)
+    if config.model_type == 't5':
+        from transformers import T5EncoderModel
 
-            pretrained_model = T5EncoderModel.from_pretrained(model_name_or_path)
-        else:
-            pretrained_model = AutoModel.from_pretrained(model_name_or_path)
-        return pretrained_model
+        pretrained_model = T5EncoderModel.from_pretrained(model_name_or_path)
+    else:
+        pretrained_model = AutoModel.from_pretrained(model_name_or_path)
+    return pretrained_model  # type: ignore
 
 
 StrategyEmbedderClsMap: dict[EmbeddingStrategy, Type['Embedder']] = {}
@@ -139,26 +139,15 @@ class EmbeddingLastEmbedder(Embedder):
 class AutoEmbedder:
     @classmethod
     def from_pretrained(cls, model_name_or_path: str | Path):
-        encoder = load_hf_pretrained_model(model_name_or_path)
+        encoder = load_hf_pretrained_model(str(model_name_or_path))
         embedder_cls = StrategyEmbedderClsMap[EmbeddingStrategy(encoder.config.uniem_embedding_strategy)]
         return embedder_cls(encoder)
 
 
 class EmbedderForTrain(torch.nn.Module):
-    def __init__(self, embedder: Embedder, chunk_size: int = 8):
+    def __init__(self, embedder: Embedder):
         super().__init__()
         self.embedder = embedder
-        self.chunk_size = chunk_size
-
-    def chunk_embedder_forward(self, input_ids: torch.Tensor) -> torch.Tensor:
-        num_chunks = (input_ids.size(0) // self.chunk_size) + 1
-        if num_chunks <= 1:
-            return self.embedder(input_ids)
-
-        chunks = torch.chunk(input_ids, num_chunks, dim=0)
-        embeddings = [self.embedder(chunk) for chunk in chunks]
-        embeddings = torch.cat(embeddings, dim=0)
-        return embeddings
 
 
 class EmbedderForPairTrain(EmbedderForTrain):
@@ -168,11 +157,10 @@ class EmbedderForPairTrain(EmbedderForTrain):
         temperature: float = 0.05,
         use_sigmoid: bool = False,
         embedding_strategy: EmbeddingStrategy | str = EmbeddingStrategy.last_mean,
-        chunk_size: int = 8,
     ):
         pretrained_model = load_hf_pretrained_model(model_name_or_path)
         embedder = StrategyEmbedderClsMap[EmbeddingStrategy(embedding_strategy)](pretrained_model)
-        super().__init__(embedder, chunk_size)
+        super().__init__(embedder)
         if use_sigmoid:
             self.criterion = PairSigmoidContrastLoss(temperature)
         else:
@@ -192,16 +180,15 @@ class EmbedderForTripletTrain(EmbedderForTrain):
         temperature: float = 0.05,
         use_sigmoid: bool = False,
         embedding_strategy: EmbeddingStrategy | str = EmbeddingStrategy.last_mean,
-        chunk_size: int = 8,
+        add_swap_loss: bool = False,
     ):
         pretrained_model = load_hf_pretrained_model(model_name_or_path)
         embedder = StrategyEmbedderClsMap[EmbeddingStrategy(embedding_strategy)](pretrained_model)
-        super().__init__(embedder, chunk_size)
+        super().__init__(embedder)
         if use_sigmoid:
-            self.criterion = TripletSigmoidContrastLoss(temperature)
+            self.criterion = TripletSigmoidContrastLoss(temperature, add_swap_loss)
         else:
-            self.criterion = TripletSoftmaxContrastLoss(temperature)
-        self.chunk_size = chunk_size
+            self.criterion = TripletSoftmaxContrastLoss(temperature, add_swap_loss)
 
     def forward(
         self, text_ids: torch.Tensor, text_pos_ids: torch.Tensor, text_neg_ids: torch.Tensor
