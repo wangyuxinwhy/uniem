@@ -28,6 +28,7 @@ conda create -n uniem python=3.10
 pip install -e .
 ```
 3. get help
+![](./docs/imgs/medi-help.png)
 ```bash
 python scripts/train_medi.py --help
 ```
