@@ -8,6 +8,7 @@ from uniem.model import (
     EmbedderForTripletTrain,
     FirstLastEmbedder,
     LastMeanEmbedder,
+    LastWeightedEmbedder,
     UniEmbedder,
     creat_mask_from_input_ids,
     mean_pooling,
@@ -106,6 +107,20 @@ def test_uniem_pair_model(use_sigmoid: bool):
 
     loss = model(**records)['loss']
     assert isinstance(loss, torch.Tensor)
+
+
+def test_last_weighted_embedder(transformers_model):
+    embedder = LastWeightedEmbedder(transformers_model, pad_token_id=0)
+    text_ids = torch.tensor([[101, 2769, 1599, 102], [101, 3614, 102, 0]])
+    last_hidden_state = transformers_model(text_ids).last_hidden_state
+    embeddings_0 = (1 / 10) * last_hidden_state[0, 0, :] + (2 / 10) * last_hidden_state[0, 1, :] + (3 / 10) * last_hidden_state[0, 2, :] + (4 / 10) * last_hidden_state[0, 3, :]
+    embeddings_1 = (1 / 6) * last_hidden_state[1, 0, :] + (2 / 6) * last_hidden_state[1, 1, :] + (3 / 6) * last_hidden_state[1, 2, :]
+
+
+    embeddings = embedder(text_ids)
+
+    assert torch.allclose(embeddings[0], embeddings_0)
+    assert torch.allclose(embeddings[1], embeddings_1)
 
 
 @pytest.mark.parametrize('embedder_cls', [LastMeanEmbedder, FirstLastEmbedder])

@@ -24,6 +24,7 @@ class EmbeddingStrategy(str, Enum):
     last_mean = 'last_mean'
     first_last_mean = 'first_last_mean'
     embedding_last_mean = 'embedding_last_mean'
+    last_weighted = 'last_weighted'
 
 
 def creat_mask_from_input_ids(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
@@ -101,8 +102,6 @@ class ClsEmbedder(Embedder):
     embedding_strategy: ClassVar[EmbeddingStrategy] = EmbeddingStrategy.cls
 
     def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
-        if mask is None:
-            mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
         embeddings = self.encoder(input_ids).last_hidden_state[:, 0]
         return embeddings
 
@@ -134,6 +133,23 @@ class EmbeddingLastEmbedder(Embedder):
         mean_last_embeddings = mean_pooling(self.encoder(input_ids).last_hidden_state, mask)
         mean_static_embeddings = mean_pooling(static_embeddings, mask)
         return (mean_last_embeddings + mean_static_embeddings) / 2
+
+
+class LastWeightedEmbedder(Embedder):
+    embedding_strategy: ClassVar[EmbeddingStrategy] = EmbeddingStrategy.last_weighted
+
+    def __init__(self, encoder: PreTrainedModel, pad_token_id: int | None = None):
+        super().__init__(encoder, pad_token_id)
+        self.embedding_layer = self.encoder.get_input_embeddings()
+    
+    def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
+        if mask is None:
+            mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
+        weights = (torch.arange(input_ids.shape[1], device=input_ids.device) + 1).float()
+        embeddings = self.encoder(input_ids).last_hidden_state
+        embeddings = embeddings * mask.unsqueeze(-1).float() * weights.unsqueeze(0).unsqueeze(-1)
+        embeddings = torch.sum(embeddings, dim=1) / torch.sum(weights * mask, dim=-1, keepdim=True)
+        return embeddings
 
 
 class AutoEmbedder:
@@ -232,11 +248,18 @@ class UniEmbedder:
             unit='batch',
             desc='Encoding',
         ):
-            input_ids = self.tokenizer(batch, padding=True, truncation=True, return_tensors='pt')['input_ids']
+            encodes = self.tokenizer(batch, padding=True, truncation=True, return_tensors='pt', return_attention_mask=True)
+            
+            input_ids = encodes['input_ids']
             input_ids = cast(torch.Tensor, input_ids)
             input_ids = input_ids.to(self.embedder.encoder.device)
+
+            attention_mask = encodes['attention_mask']
+            attention_mask = cast(torch.Tensor, attention_mask)
+            attention_mask = attention_mask.to(self.embedder.encoder.device)
+
             with torch.inference_mode():
-                batch_embeddings = self.embedder(input_ids)
+                batch_embeddings = self.embedder(input_ids, mask=attention_mask)
                 batch_embeddings = cast(torch.Tensor, batch_embeddings)
             embeddings.extend([i.cpu().numpy() for i in batch_embeddings])
         return embeddings
