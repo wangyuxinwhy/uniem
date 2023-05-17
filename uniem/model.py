@@ -141,7 +141,7 @@ class LastWeightedEmbedder(Embedder):
     def __init__(self, encoder: PreTrainedModel, pad_token_id: int | None = None):
         super().__init__(encoder, pad_token_id)
         self.embedding_layer = self.encoder.get_input_embeddings()
-    
+
     def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         if mask is None:
             mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
@@ -249,7 +249,7 @@ class UniEmbedder:
             desc='Encoding',
         ):
             encodes = self.tokenizer(batch, padding=True, truncation=True, return_tensors='pt', return_attention_mask=True)
-            
+
             input_ids = encodes['input_ids']
             input_ids = cast(torch.Tensor, input_ids)
             input_ids = input_ids.to(self.embedder.encoder.device)

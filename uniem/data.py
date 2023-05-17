@@ -86,23 +86,46 @@ class TripletCollator:
 
 
 class MediDataset(Dataset):
-    def __init__(self, medi_data_file: str | Path, batch_size: int, join_with: str = '\n'):
+    def __init__(
+        self,
+        medi_data_file: str | Path,
+        batch_size: int,
+        with_prompt: bool = True,
+        join_with: str = '\n',
+        drop_last: bool = True,
+    ):
         medi_data = json.load(fp=Path(medi_data_file).open())
 
         self._task_records_map: dict[str, list[TripletRecord]] = defaultdict(list)
         for record in medi_data:
             taks_name = record['task_name']
-            record = TripletRecord(
-                text=join_with.join(record['query']),
-                text_pos=join_with.join(record['pos']),
-                text_neg=join_with.join(record['neg']),
-            )
+            if with_prompt:
+                record = TripletRecord(
+                    text=join_with.join(record['query']),
+                    text_pos=join_with.join(record['pos']),
+                    text_neg=join_with.join(record['neg']),
+                )
+            else:
+                record = TripletRecord(
+                    text=record['query'][1],
+                    text_pos=record['pos'][1],
+                    text_neg=record['neg'][1],
+                )
             self._task_records_map[taks_name].append(record)
 
         self.batched_records = []
         for _, records in self._task_records_map.items():
             buffer = []
-            for i in RandomSampler(records, num_samples=(1 + len(records) // batch_size) * batch_size):
+
+            num_samples = (len(records) // batch_size) * batch_size
+            if not drop_last and len(records) % batch_size != 0:
+                num_samples += batch_size
+
+            if not num_samples:
+                self.batched_records.append(records)
+                continue
+
+            for i in RandomSampler(records, num_samples=num_samples):
                 buffer.append(records[i])
                 if len(buffer) == batch_size:
                     self.batched_records.append(buffer)

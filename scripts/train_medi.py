@@ -24,16 +24,20 @@ def main(
     # Model
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
     use_sigmoid: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
-    max_length: Annotated[int, typer.Option(rich_help_panel='Model')] = 512,
     embedding_strategy: Annotated[EmbeddingStrategy, typer.Option(rich_help_panel='Model')] = EmbeddingStrategy.last_mean,
     add_swap_loss: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
+    # Data
+    batch_size: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 32,
+    with_prompt: Annotated[bool, typer.Option(rich_help_panel='Data')] = True,
+    drop_last: Annotated[bool, typer.Option(rich_help_panel='Data')] = True,
+    join_with: Annotated[str, typer.Option(rich_help_panel='Data')] = '\n',
+    max_length: Annotated[int, typer.Option(rich_help_panel='Model')] = 512,
     # Optimizer
     lr: Annotated[float, typer.Option(rich_help_panel='Optimizer')] = 3e-5,
     weight_decay: Annotated[float, typer.Option(rich_help_panel='Optimizer')] = 1e-3,
     num_warmup_steps: Annotated[float, typer.Option(rich_help_panel='Optimizer')] = 0.05,
     # Trainer
     epochs: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 3,
-    batch_size: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 32,
     mixed_precision: Annotated[MixedPrecisionType, typer.Option(rich_help_panel='Trainer')] = MixedPrecisionType.no,
     gradient_accumulation_steps: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 1,
     save_on_epoch_end: Annotated[bool, typer.Option(rich_help_panel='Trainer')] = False,
@@ -65,7 +69,9 @@ def main(
 
     # DataLoader
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-    train_dataset = MediDataset(medi_data_file=medi_data_file, batch_size=batch_size)
+    train_dataset = MediDataset(
+        medi_data_file=medi_data_file, batch_size=batch_size, with_prompt=with_prompt, join_with=join_with, drop_last=drop_last
+    )
     data_collator = TripletCollator(tokenizer=tokenizer, max_length=max_length)
     train_dataloader = DataLoader(
         train_dataset, batch_size=None, collate_fn=data_collator, shuffle=True, num_workers=num_workers, pin_memory=True
