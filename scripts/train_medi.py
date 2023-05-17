@@ -8,8 +8,8 @@ from accelerate.utils import ProjectConfiguration, set_seed
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup
 
-from uniem.data import MediDataset, TripletCollator
-from uniem.model import EmbedderForTripletTrain, EmbeddingStrategy
+from uniem.data import MediDataset, TripletCollator, PairCollator
+from uniem.model import EmbedderForTripletTrain, EmbedderForPairTrain, EmbedderForTrain, EmbeddingStrategy
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
 from uniem.utils import create_adamw_optimizer
@@ -27,11 +27,12 @@ def main(
     embedding_strategy: Annotated[EmbeddingStrategy, typer.Option(rich_help_panel='Model')] = EmbeddingStrategy.last_mean,
     add_swap_loss: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
     # Data
-    batch_size: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 32,
+    batch_size: Annotated[int, typer.Option(rich_help_panel='Data')] = 32,
+    pair_or_triplet: Annotated[str, typer.Option(rich_help_panel='Data')] = 'triplet',
     with_prompt: Annotated[bool, typer.Option(rich_help_panel='Data')] = True,
     drop_last: Annotated[bool, typer.Option(rich_help_panel='Data')] = True,
     join_with: Annotated[str, typer.Option(rich_help_panel='Data')] = '\n',
-    max_length: Annotated[int, typer.Option(rich_help_panel='Model')] = 512,
+    max_length: Annotated[int, typer.Option(rich_help_panel='Data')] = 512,
     # Optimizer
     lr: Annotated[float, typer.Option(rich_help_panel='Optimizer')] = 3e-5,
     weight_decay: Annotated[float, typer.Option(rich_help_panel='Optimizer')] = 1e-3,
@@ -70,22 +71,33 @@ def main(
     # DataLoader
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     train_dataset = MediDataset(
-        medi_data_file=medi_data_file, batch_size=batch_size, with_prompt=with_prompt, join_with=join_with, drop_last=drop_last
+        medi_data_file=medi_data_file, batch_size=batch_size, pair_or_triplet=pair_or_triplet, with_prompt=with_prompt, join_with=join_with, drop_last=drop_last
     )
-    data_collator = TripletCollator(tokenizer=tokenizer, max_length=max_length)
+    if pair_or_triplet == 'triplet':
+        data_collator = TripletCollator(tokenizer=tokenizer, max_length=max_length)
+    else:
+        data_collator = PairCollator(tokenizer=tokenizer, max_length=max_length)
     train_dataloader = DataLoader(
         train_dataset, batch_size=None, collate_fn=data_collator, shuffle=True, num_workers=num_workers, pin_memory=True
     )
     train_dataloader = accelerator.prepare(train_dataloader)
 
     # Model
-    model = EmbedderForTripletTrain(
-        model_name_or_path=model_name_or_path,
-        temperature=temperature,
-        use_sigmoid=use_sigmoid,
-        embedding_strategy=embedding_strategy,
-        add_swap_loss=add_swap_loss,
-    )
+    if pair_or_triplet == 'triplet':
+        model = EmbedderForTripletTrain(
+            model_name_or_path=model_name_or_path,
+            temperature=temperature,
+            use_sigmoid=use_sigmoid,
+            embedding_strategy=embedding_strategy,
+            add_swap_loss=add_swap_loss,
+        )
+    else:
+        model = EmbedderForPairTrain(
+            model_name_or_path=model_name_or_path,
+            temperature=temperature,
+            use_sigmoid=use_sigmoid,
+            embedding_strategy=embedding_strategy,
+        )
     model.embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
     model = accelerator.prepare(model)
 
@@ -120,7 +132,7 @@ def main(
     accelerator.print('Training finished')
 
     accelerator.print('Saving model')
-    unwrapped_model = cast(EmbedderForTripletTrain, accelerator.unwrap_model(model))
+    unwrapped_model = cast(EmbedderForTrain, accelerator.unwrap_model(model))
 
     unwrapped_model.embedder.save_pretrained(output_dir / 'model')
     tokenizer.save_pretrained(output_dir / 'model')

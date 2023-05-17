@@ -89,28 +89,42 @@ class MediDataset(Dataset):
     def __init__(
         self,
         medi_data_file: str | Path,
-        batch_size: int,
+        batch_size: int = 32,
+        pair_or_triplet: str = 'triplet', 
         with_prompt: bool = True,
         join_with: str = '\n',
         drop_last: bool = True,
     ):
         medi_data = json.load(fp=Path(medi_data_file).open())
+        assert pair_or_triplet in ('pair', 'triplet')
 
         self._task_records_map: dict[str, list[TripletRecord]] = defaultdict(list)
         for record in medi_data:
             taks_name = record['task_name']
             if with_prompt:
-                record = TripletRecord(
-                    text=join_with.join(record['query']),
-                    text_pos=join_with.join(record['pos']),
-                    text_neg=join_with.join(record['neg']),
-                )
+                if pair_or_triplet == 'triplet':
+                    record = TripletRecord(
+                        text=join_with.join(record['query']),
+                        text_pos=join_with.join(record['pos']),
+                        text_neg=join_with.join(record['neg']),
+                    )
+                else:
+                    record = PairRecord(
+                        text=join_with.join(record['query']),
+                        text_pos=join_with.join(record['pos']),
+                    )
             else:
-                record = TripletRecord(
-                    text=record['query'][1],
-                    text_pos=record['pos'][1],
-                    text_neg=record['neg'][1],
-                )
+                if pair_or_triplet == 'triplet':
+                    record = TripletRecord(
+                        text=record['query'][1],
+                        text_pos=record['pos'][1],
+                        text_neg=record['neg'][1],
+                    )
+                else:
+                    record = PairRecord(
+                        text=record['query'][1],
+                        text_pos=record['pos'][1],
+                    )
             self._task_records_map[taks_name].append(record)
 
         self.batched_records = []
