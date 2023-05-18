@@ -32,7 +32,7 @@ class EmbeddingStrategy(str, Enum):
 class LossType(str, Enum):
     sigmoid = 'sigmoid'
     softmax = 'softmax'
-    consent = 'consent'
+    cosent = 'cosent'
 
 
 def creat_mask_from_input_ids(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
@@ -190,7 +190,7 @@ class EmbedderForPairTrain(EmbedderForTrain):
             self.criterion = PairSigmoidContrastLoss(temperature)
         elif loss_type == LossType.softmax:
             self.criterion = PairSoftmaxContrastLoss(temperature)
-        elif loss_type == LossType.consent:
+        elif loss_type == LossType.cosent:
             self.criterion = PairCoSentLoss(temperature)
 
     def forward(self, text_ids: torch.Tensor, text_pos_ids: torch.Tensor) -> dict[str, torch.Tensor]:
@@ -217,7 +217,7 @@ class EmbedderForTripletTrain(EmbedderForTrain):
             self.criterion = TripletSigmoidContrastLoss(temperature, add_swap_loss)
         elif loss_type == LossType.softmax:
             self.criterion = TripletSoftmaxContrastLoss(temperature, add_swap_loss)
-        elif loss_type == LossType.consent:
+        elif loss_type == LossType.cosent:
             self.criterion = TripletCoSentLoss(temperature, add_swap_loss)
 
     def forward(

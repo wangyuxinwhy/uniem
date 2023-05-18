@@ -68,7 +68,7 @@ def test_mean_pooling():
     )
 
 
-@pytest.mark.parametrize('loss_type', ['softmax', 'sigmoid', 'consent'])
+@pytest.mark.parametrize('loss_type', ['softmax', 'sigmoid', 'cosent'])
 def test_uniem_triplet_model(loss_type: str):
     model1 = EmbedderForTripletTrain(model_name_or_path=str(FIXTURES_DIR / 'model'), temperature=0.05, loss_type=loss_type)
     model2 = EmbedderForTripletTrain(
@@ -93,7 +93,7 @@ def test_uniem_triplet_model(loss_type: str):
     assert torch.allclose(loss1, loss2)
 
 
-@pytest.mark.parametrize('loss_type', ['softmax', 'sigmoid', 'consent'])
+@pytest.mark.parametrize('loss_type', ['softmax', 'sigmoid', 'cosent'])
 def test_uniem_pair_model(loss_type: str):
     model = EmbedderForPairTrain(
         model_name_or_path=str(FIXTURES_DIR / 'model'),
