@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup
 
 from uniem.data import MediDataset, TripletCollator, PairCollator
-from uniem.model import EmbedderForTripletTrain, EmbedderForPairTrain, EmbedderForTrain, EmbeddingStrategy
+from uniem.model import EmbedderForTripletTrain, EmbedderForPairTrain, EmbedderForTrain, EmbeddingStrategy, LossType
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
 from uniem.utils import create_adamw_optimizer
@@ -23,7 +23,7 @@ def main(
     medi_data_file: Path,
     # Model
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
-    use_sigmoid: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
+    loss_type: Annotated[LossType, typer.Option(rich_help_panel='Model')] = LossType.softmax,
     embedding_strategy: Annotated[EmbeddingStrategy, typer.Option(rich_help_panel='Model')] = EmbeddingStrategy.last_mean,
     add_swap_loss: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
     # Data
@@ -71,7 +71,12 @@ def main(
     # DataLoader
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     train_dataset = MediDataset(
-        medi_data_file=medi_data_file, batch_size=batch_size, pair_or_triplet=pair_or_triplet, with_prompt=with_prompt, join_with=join_with, drop_last=drop_last
+        medi_data_file=medi_data_file,
+        batch_size=batch_size,
+        pair_or_triplet=pair_or_triplet,
+        with_prompt=with_prompt,
+        join_with=join_with,
+        drop_last=drop_last,
     )
     if pair_or_triplet == 'triplet':
         data_collator = TripletCollator(tokenizer=tokenizer, max_length=max_length)
@@ -87,7 +92,7 @@ def main(
         model = EmbedderForTripletTrain(
             model_name_or_path=model_name_or_path,
             temperature=temperature,
-            use_sigmoid=use_sigmoid,
+            loss_type=loss_type,
             embedding_strategy=embedding_strategy,
             add_swap_loss=add_swap_loss,
         )
@@ -95,7 +100,7 @@ def main(
         model = EmbedderForPairTrain(
             model_name_or_path=model_name_or_path,
             temperature=temperature,
-            use_sigmoid=use_sigmoid,
+            loss_type=loss_type,
             embedding_strategy=embedding_strategy,
         )
     model.embedder.encoder.config.pad_token_id = tokenizer.pad_token_id

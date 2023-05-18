@@ -68,13 +68,13 @@ def test_mean_pooling():
     )
 
 
-@pytest.mark.parametrize('use_sigmoid', [True, False])
-def test_uniem_triplet_model(use_sigmoid: bool):
-    model1 = EmbedderForTripletTrain(model_name_or_path=str(FIXTURES_DIR / 'model'), temperature=0.05, use_sigmoid=use_sigmoid)
+@pytest.mark.parametrize('loss_type', ['softmax', 'sigmoid', 'consent'])
+def test_uniem_triplet_model(loss_type: str):
+    model1 = EmbedderForTripletTrain(model_name_or_path=str(FIXTURES_DIR / 'model'), temperature=0.05, loss_type=loss_type)
     model2 = EmbedderForTripletTrain(
         model_name_or_path=str(FIXTURES_DIR / 'model'),
         temperature=0.05,
-        use_sigmoid=use_sigmoid,
+        loss_type=loss_type,
     )
     records = {
         'text_ids': torch.tensor([[101, 2769, 1599, 3614, 4334, 4347, 3425, 102], [101, 2769, 1599, 3614, 6639, 4413, 102, 0]]),
@@ -93,12 +93,12 @@ def test_uniem_triplet_model(use_sigmoid: bool):
     assert torch.allclose(loss1, loss2)
 
 
-@pytest.mark.parametrize('use_sigmoid', [True, False])
-def test_uniem_pair_model(use_sigmoid: bool):
+@pytest.mark.parametrize('loss_type', ['softmax', 'sigmoid', 'consent'])
+def test_uniem_pair_model(loss_type: str):
     model = EmbedderForPairTrain(
         model_name_or_path=str(FIXTURES_DIR / 'model'),
         temperature=0.05,
-        use_sigmoid=use_sigmoid,
+        loss_type=loss_type,
     )
     records = {
         'text_ids': torch.tensor([[101, 2769, 1599, 3614, 4334, 4347, 3425, 102], [101, 2769, 1599, 3614, 6639, 4413, 102, 0]]),

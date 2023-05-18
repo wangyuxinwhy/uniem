@@ -13,6 +13,8 @@ from uniem.criteria import (
     PairSoftmaxContrastLoss,
     TripletSigmoidContrastLoss,
     TripletSoftmaxContrastLoss,
+    PairCoSentLoss,
+    TripletCoSentLoss,
 )
 from uniem.types import Tokenizer
 
@@ -25,6 +27,12 @@ class EmbeddingStrategy(str, Enum):
     first_last_mean = 'first_last_mean'
     embedding_last_mean = 'embedding_last_mean'
     last_weighted = 'last_weighted'
+
+
+class LossType(str, Enum):
+    sigmoid = 'sigmoid'
+    softmax = 'softmax'
+    consent = 'consent'
 
 
 def creat_mask_from_input_ids(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
@@ -171,16 +179,19 @@ class EmbedderForPairTrain(EmbedderForTrain):
         self,
         model_name_or_path: str,
         temperature: float = 0.05,
-        use_sigmoid: bool = False,
+        loss_type: LossType | str = LossType.softmax,
         embedding_strategy: EmbeddingStrategy | str = EmbeddingStrategy.last_mean,
     ):
         pretrained_model = load_hf_pretrained_model(model_name_or_path)
         embedder = StrategyEmbedderClsMap[EmbeddingStrategy(embedding_strategy)](pretrained_model)
         super().__init__(embedder)
-        if use_sigmoid:
+        loss_type = LossType(loss_type)
+        if loss_type == LossType.sigmoid:
             self.criterion = PairSigmoidContrastLoss(temperature)
-        else:
+        elif loss_type == LossType.softmax:
             self.criterion = PairSoftmaxContrastLoss(temperature)
+        elif loss_type == LossType.consent:
+            self.criterion = PairCoSentLoss(temperature)
 
     def forward(self, text_ids: torch.Tensor, text_pos_ids: torch.Tensor) -> dict[str, torch.Tensor]:
         text_embeddings = self.embedder(text_ids)
@@ -194,17 +205,20 @@ class EmbedderForTripletTrain(EmbedderForTrain):
         self,
         model_name_or_path: str,
         temperature: float = 0.05,
-        use_sigmoid: bool = False,
+        loss_type: LossType | str = LossType.softmax,
         embedding_strategy: EmbeddingStrategy | str = EmbeddingStrategy.last_mean,
         add_swap_loss: bool = False,
     ):
         pretrained_model = load_hf_pretrained_model(model_name_or_path)
         embedder = StrategyEmbedderClsMap[EmbeddingStrategy(embedding_strategy)](pretrained_model)
         super().__init__(embedder)
-        if use_sigmoid:
+        loss_type = LossType(loss_type)
+        if loss_type == LossType.sigmoid:
             self.criterion = TripletSigmoidContrastLoss(temperature, add_swap_loss)
-        else:
+        elif loss_type == LossType.softmax:
             self.criterion = TripletSoftmaxContrastLoss(temperature, add_swap_loss)
+        elif loss_type == LossType.consent:
+            self.criterion = TripletCoSentLoss(temperature, add_swap_loss)
 
     def forward(
         self, text_ids: torch.Tensor, text_pos_ids: torch.Tensor, text_neg_ids: torch.Tensor

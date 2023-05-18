@@ -90,7 +90,7 @@ class MediDataset(Dataset):
         self,
         medi_data_file: str | Path,
         batch_size: int = 32,
-        pair_or_triplet: str = 'triplet', 
+        pair_or_triplet: str = 'triplet',
         with_prompt: bool = True,
         join_with: str = '\n',
         drop_last: bool = True,
