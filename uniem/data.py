@@ -98,7 +98,7 @@ class MediDataset(Dataset):
         medi_data = json.load(fp=Path(medi_data_file).open())
         assert pair_or_triplet in ('pair', 'triplet')
 
-        self._task_records_map: dict[str, list[TripletRecord]] = defaultdict(list)
+        self._task_records_map: dict[str, list[TripletRecord | PairRecord]] = defaultdict(list)
         for record in medi_data:
             taks_name = record['task_name']
             if with_prompt:
