@@ -7,7 +7,7 @@ from uniem.types import DatasetDescription, UniemDataset
 
 
 def load_cmrc2018(remove_other_colums: bool = False):
-    dataset_dict = load_dataset("cmrc2018")
+    dataset_dict = load_dataset('cmrc2018')
     dataset_dict = cast(DatasetDict, dataset_dict)
     column_names = dataset_dict.column_names['train']
     dataset_dict = dataset_dict.rename_columns({'question': 'text', 'context': 'text_pos'})
@@ -62,8 +62,9 @@ zhihu_kol_description = DatasetDescription(
     instruction_type='问答',
 )
 
+
 def load_hc3_chinese(remove_other_colums: bool = False):
-    dataset_dict = load_dataset("Hello-SimpleAI/HC3-Chinese", "all")
+    dataset_dict = load_dataset('Hello-SimpleAI/HC3-Chinese', 'all')
     dataset_dict = cast(DatasetDict, dataset_dict)
     processed_records = []
     for dataset in dataset_dict.values():
@@ -72,18 +73,12 @@ def load_hc3_chinese(remove_other_colums: bool = False):
             human_answers = record.pop('human_answers')
             chatgpt_answers = record.pop('chatgpt_answers')
             for answer in human_answers:
-                new_record = {
-                    'text': question,
-                    'text_pos': answer
-                }
+                new_record = {'text': question, 'text_pos': answer}
                 if not remove_other_colums:
                     new_record.update(record)
                 processed_records.append(new_record)
             for answer in chatgpt_answers:
-                new_record = {
-                    'text': question,
-                    'text_pos': answer
-                }
+                new_record = {'text': question, 'text_pos': answer}
                 if not remove_other_colums:
                     new_record.update(record)
                 processed_records.append(new_record)
@@ -98,14 +93,15 @@ hc3_chinese_description = DatasetDescription(
     instruction_type='问答',
 )
 
+
 def load_wiki_atomic_edits(remove_other_colums: bool = False):
     import string
     from datasets import concatenate_datasets
 
     letters_and_digits = set(string.ascii_letters + string.digits)
 
-    dataset1 = load_dataset("wiki_atomic_edits", "chinese_insertions")['train']  # type: ignore
-    dataset2 = load_dataset("wiki_atomic_edits", "chinese_deletions")['train']  # type: ignore
+    dataset1 = load_dataset('wiki_atomic_edits', 'chinese_insertions')['train']  # type: ignore
+    dataset2 = load_dataset('wiki_atomic_edits', 'chinese_deletions')['train']  # type: ignore
     dataset = concatenate_datasets([dataset1, dataset2])  # type: ignore
 
     def concat_words(words: list[str]):
@@ -121,8 +117,9 @@ def load_wiki_atomic_edits(remove_other_colums: bool = False):
     def _process(example):
         return {
             'base_sentence': concat_words(example['base_sentence'].split(' ')),
-            'edited_sentence': concat_words(example['edited_sentence'].split(' '))
+            'edited_sentence': concat_words(example['edited_sentence'].split(' ')),
         }
+
     dataset = dataset.map(_process)
     if remove_other_colums:
         dataset = dataset.remove_columns(['id', 'phrase'])
@@ -156,6 +153,7 @@ chatmed_consult_description = DatasetDescription(
     instruction_type='问答',
 )
 
+
 def load_amazon_reviews(remove_other_colums: bool = False):
     dataset_dict = load_dataset('amazon_reviews_multi', 'zh')
     dataset_dict = cast(DatasetDict, dataset_dict)
@@ -184,15 +182,9 @@ def load_xlsum(remove_other_colums: bool = False):
     else:
         dataset1 = dataset.select_columns(['title', 'summary', 'id', 'url'])
         dataset2 = dataset.select_columns(['title', 'text', 'id', 'url'])
-    dataset1 = dataset1.rename_columns({
-        'title': 'text',
-        'summary': 'text_pos'
-    })
-    dataset2 = dataset2.rename_columns({
-        'title': 'text',
-        'text': 'text_pos'
-    })
-    all_datasets = list(dataset1.values()) + list(dataset2.values()) # type: ignore
+    dataset1 = dataset1.rename_columns({'title': 'text', 'summary': 'text_pos'})
+    dataset2 = dataset2.rename_columns({'title': 'text', 'text': 'text_pos'})
+    all_datasets = list(dataset1.values()) + list(dataset2.values())   # type: ignore
     dataset = concatenate_datasets(all_datasets)
     return dataset
 
@@ -204,6 +196,7 @@ xlsum_description = DatasetDescription(
     raw_size=93404,
     instruction_type='摘要',
 )
+
 
 def load_mlqa(remove_other_colums: bool = False):
     dataset_dict = load_dataset('mlqa', 'mlqa-translate-train.zh')
@@ -321,9 +314,10 @@ ALL_DATASETS: list[UniemDataset] = [
     UniemDataset(load_pawsx, pawsx_description),
 ]
 
+
 def main(output_dir: Path):
     output_dir.mkdir(exist_ok=True, parents=True)
-    
+
     for uniem_dataset in ALL_DATASETS:
         processed_dataset_dir = output_dir / f'{uniem_dataset.description.name}.dataset'
         if processed_dataset_dir.exists():

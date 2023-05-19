@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -5,6 +6,7 @@ from typing import cast
 
 import torch
 from torch.utils.data import Dataset, RandomSampler
+from datasets import Dataset as HfDataset
 
 from uniem.data_structures import PairRecord, TripletRecord
 from uniem.types import Tokenizer
@@ -153,3 +155,67 @@ class MediDataset(Dataset):
 
     def __len__(self):
         return len(self.batched_records)
+
+
+@dataclass
+class TaskBatchIndex:
+    name: str
+    batch_index: list[int]
+
+
+@dataclass
+class M3EHfDatsetWithInfo:
+    hf_dataset: HfDataset
+    name: str
+    instruction: str = ''
+
+
+# Moka Massive Mixed Embedding Dataset
+class M3EDataset(Dataset):
+    def __init__(
+        self,
+        datasets: list[M3EHfDatsetWithInfo],
+        batch_size: int = 32,
+        with_instruction: bool = True,
+        drop_last: bool = True,
+    ):
+        self.name_dataset_map = {dataset.name: dataset.hf_dataset for dataset in datasets}
+        self.task_batch_index_list = []
+        for dataset in datasets:
+            hf_dataset = dataset.hf_dataset
+            dataset_name = dataset.name
+            num_samples = (len(hf_dataset) // batch_size) * batch_size
+            if not drop_last and len(hf_dataset) % batch_size != 0:
+                num_samples += batch_size
+
+            if not num_samples:
+                continue
+
+            buffer = []
+            for i in RandomSampler(hf_dataset, num_samples=num_samples):
+                buffer.append(i)
+                if len(buffer) == batch_size:
+                    self.task_batch_index_list.append(TaskBatchIndex(name=dataset_name, batch_index=buffer))
+                    buffer = []
+        if with_instruction:
+            self.task_instruction_map = {dataset.name: dataset.instruction for dataset in datasets}
+        else:
+            self.task_instruction_map = None
+
+    def __getitem__(self, index):
+        task_batch_index = self.task_batch_index_list[index]
+        task_name = task_batch_index.name
+        batch_index = task_batch_index.batch_index
+        hf_dataset = self.name_dataset_map[task_name]
+        records = [hf_dataset[i] for i in batch_index]
+        pair_records = []
+        for record in records:
+            text = record['text']
+            text_pos = record['text_pos']
+            if self.task_instruction_map is not None:
+                text = self.task_instruction_map[task_name] + text
+            pair_records.append(PairRecord(text=text, text_pos=text_pos))
+        return pair_records
+
+    def __len__(self):
+        return len(self.task_batch_index_list)
