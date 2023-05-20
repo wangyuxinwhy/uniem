@@ -98,6 +98,9 @@ class MediDataset(Dataset):
         drop_last: bool = True,
     ):
         medi_data = json.load(fp=Path(medi_data_file).open())
+        self.batch_size = batch_size
+        self.join_with = join_with
+        self.drop_last = drop_last
         assert pair_or_triplet in ('pair', 'triplet')
 
         self._task_records_map: dict[str, list[TripletRecord | PairRecord]] = defaultdict(list)
@@ -128,13 +131,16 @@ class MediDataset(Dataset):
                         text_pos=record['pos'][1],
                     )
             self._task_records_map[taks_name].append(record)
+        self.create_or_refresh_data()
 
+    def create_or_refresh_data(self):
+        batch_size = self.batch_size
         self.batched_records = []
         for _, records in self._task_records_map.items():
             buffer = []
 
             num_samples = (len(records) // batch_size) * batch_size
-            if not drop_last and len(records) % batch_size != 0:
+            if not self.drop_last and len(records) % batch_size != 0:
                 num_samples += batch_size
 
             if not num_samples:
@@ -146,12 +152,6 @@ class MediDataset(Dataset):
                 if len(buffer) == batch_size:
                     self.batched_records.append(buffer)
                     buffer = []
-
-        self.batch_size = batch_size
-        self.join_with = join_with
-        self.shuffle()
-
-    def shuffle(self):
         self.random_index_list = list(RandomSampler(self.batched_records))
 
     def __getitem__(self, index):
@@ -179,18 +179,33 @@ class M3EHfDatsetWithInfo:
 class M3EDataset(Dataset):
     def __init__(
         self,
-        datasets: list[M3EHfDatsetWithInfo],
+        m3e_hf_datasets: list[M3EHfDatsetWithInfo],
         batch_size: int = 32,
         with_instruction: bool = True,
         drop_last: bool = True,
     ):
-        self.name_dataset_map = {dataset.name: dataset.hf_dataset for dataset in datasets}
-        self.task_batch_index_list = []
-        for dataset in datasets:
+        self.batch_size = batch_size
+        self.drop_last = drop_last
+        self.m3e_hf_datasets = m3e_hf_datasets
+        self.name_dataset_map = {dataset.name: dataset.hf_dataset for dataset in m3e_hf_datasets}
+        if with_instruction:
+            self.task_instruction_map = {dataset.name: dataset.instruction for dataset in m3e_hf_datasets}
+        else:
+            self.task_instruction_map = None
+        self.create_or_refresh_data()
+
+    @staticmethod
+    def is_valid_text(text: Any) -> bool:
+        return isinstance(text, str) and text.strip()
+
+    def create_or_refresh_data(self):
+        batch_size = self.batch_size
+        self.task_batch_index_list: list[TaskBatchIndex] = []
+        for dataset in self.m3e_hf_datasets:
             hf_dataset = dataset.hf_dataset
             dataset_name = dataset.name
             num_samples = (len(hf_dataset) // batch_size) * batch_size
-            if not drop_last and len(hf_dataset) % batch_size != 0:
+            if not self.drop_last and len(hf_dataset) % batch_size != 0:
                 num_samples += batch_size
 
             if not num_samples:
@@ -202,20 +217,9 @@ class M3EDataset(Dataset):
                 if len(buffer) == batch_size:
                     self.task_batch_index_list.append(TaskBatchIndex(name=dataset_name, batch_index=buffer))
                     buffer = []
-        if with_instruction:
-            self.task_instruction_map = {dataset.name: dataset.instruction for dataset in datasets}
-        else:
-            self.task_instruction_map = None
-        self.shuffle()
-
-    @staticmethod
-    def is_valid_text(text: Any) -> bool:
-        return isinstance(text, str) and text.strip()
-
-    def shuffle(self):
         self.random_index_list = list(RandomSampler(self.task_batch_index_list))
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         index = self.random_index_list[index]
         task_batch_index = self.task_batch_index_list[index]
         task_name = task_batch_index.name
