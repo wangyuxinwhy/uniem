@@ -118,6 +118,9 @@ def main(
     )
     optimizer, lr_scheduler = accelerator.prepare(optimizer, lr_scheduler)
 
+    def shuffle_callback(trainer: Trainer):
+        train_dataset.shuffle()
+
     # Trainer
     trainer = Trainer(
         model=model,
@@ -129,6 +132,7 @@ def main(
         lr_scheduler=lr_scheduler,
         log_interval=10,
         save_on_epoch_end=save_on_epoch_end,
+        epoch_end_callbacks=[shuffle_callback],
     )
     accelerator.print(f'Start training for {epochs} epochs')
     trainer.train()

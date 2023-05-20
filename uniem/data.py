@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import cast
+from typing import cast, Any
 
 import torch
 from torch.utils.data import Dataset, RandomSampler
@@ -149,8 +149,13 @@ class MediDataset(Dataset):
 
         self.batch_size = batch_size
         self.join_with = join_with
+        self.shuffle()
+
+    def shuffle(self):
+        self.random_index_list = list(RandomSampler(self.batched_records))
 
     def __getitem__(self, index):
+        index = self.random_index_list[index]
         return self.batched_records[index]
 
     def __len__(self):
@@ -201,8 +206,17 @@ class M3EDataset(Dataset):
             self.task_instruction_map = {dataset.name: dataset.instruction for dataset in datasets}
         else:
             self.task_instruction_map = None
+        self.shuffle()
+
+    @staticmethod
+    def is_valid_text(text: Any) -> bool:
+        return isinstance(text, str) and text.strip()
+
+    def shuffle(self):
+        self.random_index_list = list(RandomSampler(self.task_batch_index_list))
 
     def __getitem__(self, index):
+        index = self.random_index_list[index]
         task_batch_index = self.task_batch_index_list[index]
         task_name = task_batch_index.name
         batch_index = task_batch_index.batch_index
@@ -212,9 +226,13 @@ class M3EDataset(Dataset):
         for record in records:
             text = record['text']
             text_pos = record['text_pos']
+            if not (self.is_valid_text(text) and self.is_valid_text(text_pos)):
+                continue
             if self.task_instruction_map is not None:
                 text = self.task_instruction_map[task_name] + text
             pair_records.append(PairRecord(text=text, text_pos=text_pos))
+        if not pair_records:
+            raise ValueError(f'records is empty, {records}')
         return pair_records
 
     def __len__(self):
