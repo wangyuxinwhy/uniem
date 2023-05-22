@@ -6,6 +6,7 @@ import typer
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration, set_seed
 from torch.utils.data import DataLoader
+from datasets import load_from_disk, concatenate_datasets, Dataset as HfDataset
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup
 
 from uniem.data import M3EDataset, PairCollator, M3EHfDatsetWithInfo
@@ -18,8 +19,22 @@ app = typer.Typer()
 
 
 def load_all_datasets(m3e_datasets_dir: Path) -> list[M3EHfDatsetWithInfo]:
-    # TODO:
-    return []
+    m3e_datasets = []
+    for data_dir in m3e_datasets_dir.glob('*.dataset'):
+        dataset_name = data_dir.stem
+        dataset_dict = load_from_disk(str(data_dir))
+        if isinstance(dataset_dict, dict):
+            dataset: HfDataset = concatenate_datasets(list(dataset_dict.values()))
+        else:
+            dataset = dataset_dict
+        m3e_datasets.append(
+            M3EHfDatsetWithInfo(
+                hf_dataset=dataset,
+                name=dataset_name,
+            )
+        )
+        print(f'load {dataset_name}')
+    return m3e_datasets
 
 
 @app.command()
@@ -106,6 +121,9 @@ def main(
     )
     optimizer, lr_scheduler = accelerator.prepare(optimizer, lr_scheduler)
 
+    def refresh_data(trainer: Trainer):
+        train_dataset.create_or_refresh_data()
+
     # Trainer
     trainer = Trainer(
         model=model,
@@ -117,6 +135,7 @@ def main(
         lr_scheduler=lr_scheduler,
         log_interval=10,
         save_on_epoch_end=save_on_epoch_end,
+        epoch_end_callbacks=[refresh_data],
     )
     accelerator.print(f'Start training for {epochs} epochs')
     trainer.train()

@@ -245,7 +245,7 @@ class UniEmbedder:
         if device:
             self.embedder = self.embedder.to(device)
         self.tokenizer = tokenizer
-        self.max_length = max_legnth or self.tokenizer.model_max_length
+        self.max_length = max_legnth or self.embedder.encoder.config.max_length
 
     def __call__(self, sentences: list[str], batch_size: int = 32):
         return self.encode(sentences, batch_size)
@@ -262,7 +262,7 @@ class UniEmbedder:
             unit='batch',
             desc='Encoding',
         ):
-            encodes = self.tokenizer(batch, padding=True, truncation=True, return_tensors='pt', return_attention_mask=True)
+            encodes = self.tokenizer(batch, padding=True, truncation=True, return_tensors='pt', return_attention_mask=True, max_length=self.max_length)
 
             input_ids = encodes['input_ids']
             input_ids = cast(torch.Tensor, input_ids)

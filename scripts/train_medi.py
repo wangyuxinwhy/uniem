@@ -118,6 +118,9 @@ def main(
     )
     optimizer, lr_scheduler = accelerator.prepare(optimizer, lr_scheduler)
 
+    def refresh_data(trainer: Trainer):
+        train_dataset.create_or_refresh_data()
+
     # Trainer
     trainer = Trainer(
         model=model,
@@ -129,6 +132,7 @@ def main(
         lr_scheduler=lr_scheduler,
         log_interval=10,
         save_on_epoch_end=save_on_epoch_end,
+        epoch_end_callbacks=[refresh_data],
     )
     accelerator.print(f'Start training for {epochs} epochs')
     trainer.train()
