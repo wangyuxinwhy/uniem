@@ -183,10 +183,12 @@ class M3EDataset(Dataset):
         batch_size: int = 32,
         with_instruction: bool = True,
         drop_last: bool = True,
+        max_samples: int | None = None,
     ):
         self.batch_size = batch_size
         self.drop_last = drop_last
         self.m3e_hf_datasets = m3e_hf_datasets
+        self.max_samples = max_samples
         self.name_dataset_map = {dataset.name: dataset.hf_dataset for dataset in m3e_hf_datasets}
         if with_instruction:
             self.task_instruction_map = {dataset.name: dataset.instruction for dataset in m3e_hf_datasets}
@@ -199,23 +201,15 @@ class M3EDataset(Dataset):
         return isinstance(text, str) and bool(text.strip())
 
     def create_or_refresh_data(self):
-        batch_size = self.batch_size
         self.task_batch_index_list: list[TaskBatchIndex] = []
         for dataset in self.m3e_hf_datasets:
-            hf_dataset = dataset.hf_dataset
-            dataset_name = dataset.name
-            num_samples = (len(hf_dataset) // batch_size) * batch_size
-            if not self.drop_last and len(hf_dataset) % batch_size != 0:
-                num_samples += batch_size
-
-            if not num_samples:
-                continue
-
+            max_samples = self.max_samples or len(dataset.hf_dataset)
+            num_samples = (max_samples // self.batch_size) * self.batch_size
             buffer = []
-            for i in RandomSampler(hf_dataset, num_samples=num_samples):
+            for i in RandomSampler(dataset.hf_dataset, num_samples=num_samples):
                 buffer.append(i)
-                if len(buffer) == batch_size:
-                    self.task_batch_index_list.append(TaskBatchIndex(name=dataset_name, batch_index=buffer))
+                if len(buffer) == self.batch_size:
+                    self.task_batch_index_list.append(TaskBatchIndex(name=dataset.name, batch_index=buffer))
                     buffer = []
         self.random_index_list = list(RandomSampler(self.task_batch_index_list))
 

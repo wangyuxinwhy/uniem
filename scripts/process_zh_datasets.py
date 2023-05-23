@@ -6,13 +6,10 @@ from datasets import load_dataset, DatasetDict, Dataset, concatenate_datasets
 from uniem.types import DatasetDescription, UniemDataset
 
 
-def load_cmrc2018(remove_other_colums: bool = False):
+def load_cmrc2018():
     dataset_dict = load_dataset('cmrc2018')
     dataset_dict = cast(DatasetDict, dataset_dict)
-    column_names = dataset_dict.column_names['train']
     dataset_dict = dataset_dict.rename_columns({'question': 'text', 'context': 'text_pos'})
-    if remove_other_colums:
-        dataset_dict = dataset_dict.remove_columns(list(set(column_names) - set(['question', 'context'])))
     return dataset_dict
 
 
@@ -20,18 +17,14 @@ cmrc2018_description = DatasetDescription(
     name='cmrc2018',
     is_symmetric=False,
     domains=['百科'],
-    raw_size=14363,
     instruction_type='问答',
 )
 
 
-def load_belle_2m(remove_other_colums: bool = False):
+def load_belle_2m():
     dataset_dict = load_dataset('BelleGroup/train_2M_CN')
     dataset_dict = cast(DatasetDict, dataset_dict)
-    column_names = dataset_dict.column_names['train']
     dataset_dict = dataset_dict.rename_columns({'instruction': 'text', 'output': 'text_pos'})
-    if remove_other_colums:
-        dataset_dict = dataset_dict.remove_columns(list(set(column_names) - set(['instruction', 'output'])))
     return dataset_dict
 
 
@@ -39,18 +32,14 @@ belle_2m_description = DatasetDescription(
     name='belle_2m',
     is_symmetric=False,
     domains=['百科'],
-    raw_size=2000000,
     instruction_type='',
 )
 
 
-def load_zhihu_kol(remove_other_colums: bool = False):
+def load_zhihu_kol():
     dataset_dict = load_dataset('wangrui6/Zhihu-KOL')
     dataset_dict = cast(DatasetDict, dataset_dict)
-    column_names = dataset_dict.column_names['train']
     dataset_dict = dataset_dict.rename_columns({'INSTRUCTION': 'text', 'RESPONSE': 'text_pos'})
-    if remove_other_colums:
-        dataset_dict = dataset_dict.remove_columns(list(set(column_names) - set(['INSTRUCTION', 'RESPONSE'])))
     return dataset_dict
 
 
@@ -58,12 +47,11 @@ zhihu_kol_description = DatasetDescription(
     name='zhihu_kol',
     is_symmetric=False,
     domains=['百科'],
-    raw_size=1006218,
     instruction_type='问答',
 )
 
 
-def load_hc3_chinese(remove_other_colums: bool = False):
+def load_hc3_chinese():
     dataset_dict = load_dataset('Hello-SimpleAI/HC3-Chinese', 'all')
     dataset_dict = cast(DatasetDict, dataset_dict)
     processed_records = []
@@ -74,13 +62,11 @@ def load_hc3_chinese(remove_other_colums: bool = False):
             chatgpt_answers = record.pop('chatgpt_answers')
             for answer in human_answers:
                 new_record = {'text': question, 'text_pos': answer}
-                if not remove_other_colums:
-                    new_record.update(record)
+                new_record.update(record)
                 processed_records.append(new_record)
             for answer in chatgpt_answers:
                 new_record = {'text': question, 'text_pos': answer}
-                if not remove_other_colums:
-                    new_record.update(record)
+                new_record.update(record)
                 processed_records.append(new_record)
     return DatasetDict(train=Dataset.from_list(processed_records))
 
@@ -89,12 +75,11 @@ hc3_chinese_description = DatasetDescription(
     name='hc3_chinese',
     is_symmetric=False,
     domains=['百科'],
-    raw_size=39781,
     instruction_type='问答',
 )
 
 
-def load_wiki_atomic_edits(remove_other_colums: bool = False):
+def load_wiki_atomic_edits():
     import string
     from datasets import concatenate_datasets
 
@@ -121,8 +106,6 @@ def load_wiki_atomic_edits(remove_other_colums: bool = False):
         }
 
     dataset = dataset.map(_process)
-    if remove_other_colums:
-        dataset = dataset.remove_columns(['id', 'phrase'])
     return dataset
 
 
@@ -130,18 +113,14 @@ wiki_atomic_edis_description = DatasetDescription(
     name='wiki_atomic_edits',
     is_symmetric=True,
     domains=['百科'],
-    raw_size=1213780,
     instruction_type='相似',
 )
 
 
-def load_chatmed_consult(remove_other_colums: bool = False):
+def load_chatmed_consult():
     dataset_dict = load_dataset('michaelwzhu/ChatMed_Consult_Dataset')
     dataset_dict = cast(DatasetDict, dataset_dict)
-    column_names = dataset_dict.column_names['train']
     dataset_dict = dataset_dict.rename_columns({'query': 'text', 'response': 'text_pos'})
-    if remove_other_colums:
-        dataset_dict = dataset_dict.remove_columns(list(set(column_names) - set(['query', 'response'])))
     return dataset_dict
 
 
@@ -149,18 +128,14 @@ chatmed_consult_description = DatasetDescription(
     name='chatmed_consult',
     is_symmetric=False,
     domains=['医药'],
-    raw_size=549326,
     instruction_type='问答',
 )
 
 
-def load_amazon_reviews(remove_other_colums: bool = False):
+def load_amazon_reviews():
     dataset_dict = load_dataset('amazon_reviews_multi', 'zh')
     dataset_dict = cast(DatasetDict, dataset_dict)
-    column_names = dataset_dict.column_names['train']
     dataset_dict = dataset_dict.rename_columns({'review_title': 'text', 'review_body': 'text_pos'})
-    if remove_other_colums:
-        dataset_dict = dataset_dict.remove_columns(list(set(column_names) - set(['review_title', 'review_body'])))
     return dataset_dict
 
 
@@ -168,20 +143,14 @@ amazon_reviews_description = DatasetDescription(
     name='amazon_reviews',
     is_symmetric=False,
     domains=['电商'],
-    raw_size=210000,
     instruction_type='摘要',
 )
 
 
-def load_xlsum(remove_other_colums: bool = False):
+def load_xlsum():
     dataset = load_dataset('csebuetnlp/xlsum', 'chinese_simplified')
-
-    if remove_other_colums:
-        dataset1 = dataset.select_columns(['title', 'summary'])
-        dataset2 = dataset.select_columns(['title', 'text'])
-    else:
-        dataset1 = dataset.select_columns(['title', 'summary', 'id', 'url'])
-        dataset2 = dataset.select_columns(['title', 'text', 'id', 'url'])
+    dataset1 = dataset.select_columns(['title', 'summary', 'id', 'url'])
+    dataset2 = dataset.select_columns(['title', 'text', 'id', 'url'])
     dataset1 = dataset1.rename_columns({'title': 'text', 'summary': 'text_pos'})
     dataset2 = dataset2.rename_columns({'title': 'text', 'text': 'text_pos'})
     all_datasets = list(dataset1.values()) + list(dataset2.values())   # type: ignore
@@ -193,18 +162,14 @@ xlsum_description = DatasetDescription(
     name='xlsum',
     is_symmetric=False,
     domains=['新闻'],
-    raw_size=93404,
     instruction_type='摘要',
 )
 
 
-def load_mlqa(remove_other_colums: bool = False):
+def load_mlqa():
     dataset_dict = load_dataset('mlqa', 'mlqa-translate-train.zh')
     dataset_dict = cast(DatasetDict, dataset_dict)
-    column_names = dataset_dict.column_names['train']
     dataset_dict = dataset_dict.rename_columns({'question': 'text', 'context': 'text_pos'})
-    if remove_other_colums:
-        dataset_dict = dataset_dict.remove_columns(list(set(column_names) - set(['question', 'context'])))
     return dataset_dict
 
 
@@ -212,20 +177,16 @@ mlqa_description = DatasetDescription(
     name='mlqa',
     is_symmetric=False,
     domains=['百科'],
-    raw_size=85853,
     instruction_type='问答',
 )
 
 
-def load_ocnli(remove_other_colums: bool = False):
+def load_ocnli():
     dataset_dict = load_dataset('clue', 'ocnli')
     dataset_dict = cast(DatasetDict, dataset_dict)
     del dataset_dict['test']
     dataset_dict = dataset_dict.filter(lambda x: x['label'] == 1)
-    column_names = dataset_dict.column_names['train']
     dataset_dict = dataset_dict.rename_columns({'sentence1': 'text', 'sentence2': 'text_pos'})
-    if remove_other_colums:
-        dataset_dict = dataset_dict.remove_columns(list(set(column_names) - set(['sentence1', 'sentence2'])))
     return dataset_dict
 
 
@@ -233,19 +194,15 @@ ocnli_description = DatasetDescription(
     name='ocnli',
     is_symmetric=True,
     domains=['口语'],
-    raw_size=17726,
     instruction_type='推理',
 )
 
 
-def load_bq(remove_other_colums: bool = False):
+def load_bq():
     dataset_dict = load_dataset('shibing624/nli_zh', 'BQ')
     dataset_dict = cast(DatasetDict, dataset_dict)
     dataset_dict = dataset_dict.filter(lambda x: x['label'] == 1)
-    column_names = dataset_dict.column_names['train']
     dataset_dict = dataset_dict.rename_columns({'sentence1': 'text', 'sentence2': 'text_pos'})
-    if remove_other_colums:
-        dataset_dict = dataset_dict.remove_columns(list(set(column_names) - set(['sentence1', 'sentence2'])))
     return dataset_dict
 
 
@@ -253,19 +210,15 @@ bq_description = DatasetDescription(
     name='bq',
     is_symmetric=True,
     domains=['金融'],
-    raw_size=60000,
     instruction_type='相似',
 )
 
 
-def load_lcqmc(remove_other_colums: bool = False):
+def load_lcqmc():
     dataset_dict = load_dataset('shibing624/nli_zh', 'LCQMC')
     dataset_dict = cast(DatasetDict, dataset_dict)
     dataset_dict = dataset_dict.filter(lambda x: x['label'] == 1)
-    column_names = dataset_dict.column_names['train']
     dataset_dict = dataset_dict.rename_columns({'sentence1': 'text', 'sentence2': 'text_pos'})
-    if remove_other_colums:
-        dataset_dict = dataset_dict.remove_columns(list(set(column_names) - set(['sentence1', 'sentence2'])))
     return dataset_dict
 
 
@@ -273,19 +226,15 @@ lcqmc_description = DatasetDescription(
     name='lcqmc',
     is_symmetric=True,
     domains=['口语'],
-    raw_size=149226,
     instruction_type='相似',
 )
 
 
-def load_pawsx(remove_other_colums: bool = False):
+def load_pawsx():
     dataset_dict = load_dataset('shibing624/nli_zh', 'PAWSX')
     dataset_dict = cast(DatasetDict, dataset_dict)
     dataset_dict = dataset_dict.filter(lambda x: x['label'] == 1)
-    column_names = dataset_dict.column_names['train']
     dataset_dict = dataset_dict.rename_columns({'sentence1': 'text', 'sentence2': 'text_pos'})
-    if remove_other_colums:
-        dataset_dict = dataset_dict.remove_columns(list(set(column_names) - set(['sentence1', 'sentence2'])))
     return dataset_dict
 
 
@@ -293,8 +242,85 @@ pawsx_description = DatasetDescription(
     name='pawsx',
     is_symmetric=True,
     domains=['百科'],
-    raw_size=23576,
     instruction_type='相似',
+)
+
+
+def load_webqa():
+    dataset_dict = load_dataset('suolyer/webqa')
+    dataset_dict = cast(DatasetDict, dataset_dict)
+    dataset_dict = dataset_dict.rename_columns({'input': 'text', 'output': 'text_pos'})
+    return dataset_dict
+
+
+webqa_description = DatasetDescription(
+    name='webqa',
+    is_symmetric=False,
+    domains=['百科'],
+    instruction_type='问答',
+)
+
+
+def load_csl():
+    dataset_dict = load_dataset('neuclir/csl')
+    dataset_dict = cast(DatasetDict, dataset_dict)
+    dataset_dict = dataset_dict.rename_columns({'title': 'text', 'abstract': 'text_pos'})
+    return dataset_dict
+
+
+csl_description = DatasetDescription(
+    name='csl',
+    is_symmetric=False,
+    domains=['学术'],
+    instruction_type='摘要',
+)
+
+
+def load_dureader_robust():
+    dataset_dict = load_dataset('PaddlePaddle/dureader_robust')
+    dataset_dict = cast(DatasetDict, dataset_dict)
+    dataset_dict = dataset_dict.rename_columns({'question': 'text', 'context': 'text_pos'})
+    return dataset_dict
+
+
+dureader_robust_description = DatasetDescription(
+    name='dureader_robust',
+    is_symmetric=False,
+    domains=['百科'],
+    instruction_type='问答',
+)
+
+
+def load_miracl():
+    dataset_dict = load_dataset('miracl/miracl-corpus', 'zh')
+    dataset_dict = cast(DatasetDict, dataset_dict)
+
+    try:
+        from zhconv import convert
+    except ImportError:
+        raise ImportError('Please install zhconv first: pip install zhconv')
+
+    def to_zh_cn(batch):
+        zh_cn_titles = []
+        zh_cn_texts = []
+        for title, text in zip(batch['title'], batch['text']):
+            zh_cn_titles.append(convert(title, 'zh-cn'))
+            zh_cn_texts.append(convert(text, 'zh-cn'))
+        return {
+            'title': zh_cn_titles,
+            'text': zh_cn_texts,
+        }
+
+    dataset_dict = dataset_dict.map(to_zh_cn, batched=True)
+    dataset_dict = dataset_dict.rename_columns({'title': 'text', 'text': 'text_pos'})
+    return dataset_dict
+
+
+miracl_description = DatasetDescription(
+    name='miracl',
+    is_symmetric=False,
+    domains=['百科'],
+    instruction_type='摘要',
 )
 
 
@@ -312,6 +338,10 @@ ALL_DATASETS: list[UniemDataset] = [
     UniemDataset(load_bq, bq_description),
     UniemDataset(load_lcqmc, lcqmc_description),
     UniemDataset(load_pawsx, pawsx_description),
+    UniemDataset(load_webqa, webqa_description),
+    UniemDataset(load_csl, csl_description),
+    UniemDataset(load_dureader_robust, dureader_robust_description),
+    UniemDataset(load_miracl, miracl_description),
 ]
 
 
@@ -324,7 +354,7 @@ def main(output_dir: Path):
             print(f'{processed_dataset_dir} exists, skip')
             continue
 
-        dataset = uniem_dataset.load_fn(False)
+        dataset = uniem_dataset.load_fn()
         dataset.save_to_disk(processed_dataset_dir)
 
 

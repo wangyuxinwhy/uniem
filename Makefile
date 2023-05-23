@@ -7,3 +7,7 @@ test:
 lint:
 	blue -l 128 .
 	ruff check --fix .
+
+.PHONY : publish
+publish:
+	poetry publish --build

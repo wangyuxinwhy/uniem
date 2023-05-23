@@ -20,11 +20,10 @@ class DatasetDescription:
     name: str
     is_symmetric: bool
     domains: list[str]
-    raw_size: int
     instruction_type: str
 
 
 @dataclass
 class UniemDataset:
-    load_fn: Callable[[bool], DatasetDict]
+    load_fn: Callable[[], DatasetDict]
     description: DatasetDescription

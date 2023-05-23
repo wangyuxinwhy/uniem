@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "uniem"
-version = "0.1.0"
+version = "0.1.1"
 description = "unified embedding model"
 authors = ["wangyuxin <wangyuxin@mokahr.com>"]
 license = "MIT"

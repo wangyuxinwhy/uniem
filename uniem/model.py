@@ -262,7 +262,14 @@ class UniEmbedder:
             unit='batch',
             desc='Encoding',
         ):
-            encodes = self.tokenizer(batch, padding=True, truncation=True, return_tensors='pt', return_attention_mask=True, max_length=self.max_length)
+            encodes = self.tokenizer(
+                batch,
+                padding=True,
+                truncation=True,
+                return_tensors='pt',
+                return_attention_mask=True,
+                max_length=self.max_length,
+            )
 
             input_ids = encodes['input_ids']
             input_ids = cast(torch.Tensor, input_ids)
@@ -282,12 +289,12 @@ class UniEmbedder:
         return self.encode([sentence])[0]
 
     @classmethod
-    def from_pretrained(cls, model_name_or_path: str, max_legnth: int | None = None, device: str | None = None):
+    def from_pretrained(cls, model_name_or_path: str, max_length: int | None = None, device: str | None = None):
         encoder = AutoEmbedder.from_pretrained(model_name_or_path)
         tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
         if device is None:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        return cls(encoder, tokenizer, max_legnth=max_legnth, device=device)
+        return cls(encoder, tokenizer, max_length=max_length, device=device)
 
     def save_pretrained(self, ouptut_dir: str):
         self.embedder.save_pretrained(ouptut_dir)
