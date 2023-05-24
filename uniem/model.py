@@ -239,13 +239,23 @@ def generate_batch(data: Iterable[T], batch_size: int = 32) -> Generator[list[T]
 class UniEmbedder:
     PROGRESS_BAR_THRESHOLD = 1000
 
-    def __init__(self, embedder: Embedder, tokenizer: Tokenizer, max_length: int | None = None, device: str | None = None):
+    def __init__(
+        self,
+        embedder: Embedder,
+        tokenizer: Tokenizer,
+        normalize: bool = True,
+        max_length: int | None = None,
+        device: str | None = None,
+    ):
         super().__init__()
         self.embedder = embedder.eval()
         if device:
             self.embedder = self.embedder.to(device)
         self.tokenizer = tokenizer
-        self.max_length = max_length or self.embedder.encoder.config.max_length
+        self.normalize = normalize
+        self.max_length = (
+            max_length or self.embedder.encoder.config.max_length or self.embedder.encoder.config.max_position_embeddings
+        )
 
     def __call__(self, sentences: list[str], batch_size: int = 32):
         return self.encode(sentences, batch_size)
@@ -281,6 +291,8 @@ class UniEmbedder:
 
             with torch.inference_mode():
                 batch_embeddings = self.embedder(input_ids, mask=attention_mask)
+                if self.normalize:
+                    batch_embeddings = torch.nn.functional.normalize(batch_embeddings, dim=-1)
                 batch_embeddings = cast(torch.Tensor, batch_embeddings)
             embeddings.extend([i.cpu().numpy() for i in batch_embeddings])
         return embeddings

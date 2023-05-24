@@ -324,6 +324,47 @@ miracl_description = DatasetDescription(
 )
 
 
+def load_firefly():
+    dataset_dict = load_dataset('YeungNLP/firefly-train-1.1M')
+    if isinstance(dataset_dict, Dataset):
+        dataset_dict = DatasetDict({'train': dataset_dict})
+    dataset_dict = cast(DatasetDict, dataset_dict)
+    dataset_dict = dataset_dict.rename_columns({'input': 'text', 'target': 'text_pos'})
+    return dataset_dict
+
+
+firefly_description = DatasetDescription(
+    name='firefly',
+    is_symmetric=False,
+    domains=['百科'],
+    instruction_type='',
+)
+
+
+def load_alpaca_gpt4():
+    dataset_dict = load_dataset('shibing624/alpaca-zh')
+    if isinstance(dataset_dict, Dataset):
+        dataset_dict = DatasetDict({'train': dataset_dict})
+    dataset_dict = cast(DatasetDict, dataset_dict)
+
+    def concat_instruction_and_input(batch):
+        return {
+            'text': [f'{instruction} {input}' for instruction, input in zip(batch['instruction'], batch['input'])],
+        }
+
+    dataset_dict = dataset_dict.map(concat_instruction_and_input, batched=True)
+    dataset_dict = dataset_dict.rename_columns({'output': 'text_pos'})
+    return dataset_dict
+
+
+alpaca_gpt4_description = DatasetDescription(
+    name='alpaca_gpt4',
+    is_symmetric=False,
+    domains=['百科'],
+    instruction_type='',
+)
+
+
 ALL_DATASETS: list[UniemDataset] = [
     UniemDataset(load_cmrc2018, cmrc2018_description),
     UniemDataset(load_belle_2m, belle_2m_description),
@@ -342,6 +383,8 @@ ALL_DATASETS: list[UniemDataset] = [
     UniemDataset(load_csl, csl_description),
     UniemDataset(load_dureader_robust, dureader_robust_description),
     UniemDataset(load_miracl, miracl_description),
+    UniemDataset(load_firefly, firefly_description),
+    UniemDataset(load_alpaca_gpt4, alpaca_gpt4_description),
 ]
 
 
