@@ -249,8 +249,9 @@ class UniEmbedder:
     ):
         super().__init__()
         self.embedder = embedder.eval()
-        if device:
-            self.embedder = self.embedder.to(device)
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.embedder = self.embedder.to(device)
         self.tokenizer = tokenizer
         self.normalize = normalize
         self.max_length = (
@@ -301,12 +302,10 @@ class UniEmbedder:
         return self.encode([sentence])[0]
 
     @classmethod
-    def from_pretrained(cls, model_name_or_path: str, max_length: int | None = None, device: str | None = None):
+    def from_pretrained(cls, model_name_or_path: str, **kwargs):
         encoder = AutoEmbedder.from_pretrained(model_name_or_path)
         tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-        if device is None:
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        return cls(encoder, tokenizer, max_length=max_length, device=device)
+        return cls(encoder, tokenizer, **kwargs)
 
     def save_pretrained(self, ouptut_dir: str):
         self.embedder.save_pretrained(ouptut_dir)
