@@ -54,7 +54,7 @@ def load_t2ranking_for_reranking(rel_threshold: int | None = None):
 
     data = [{'query': k, 'positive': v[0], 'negative': v[1]} for k, v in records.items()]
     dataset = Dataset.from_list(data)
-    dataset_dict = DatasetDict(validation=dataset)
+    dataset_dict = DatasetDict(dev=dataset)
     return dataset_dict
 
 
