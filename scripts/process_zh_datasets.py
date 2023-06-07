@@ -2,7 +2,8 @@ from pathlib import Path
 from typing import cast
 
 import typer
-from datasets import load_dataset, DatasetDict, Dataset, concatenate_datasets
+
+from datasets import Dataset, DatasetDict, concatenate_datasets, load_dataset
 from uniem.types import DatasetDescription, UniemDataset
 
 
@@ -81,6 +82,7 @@ hc3_chinese_description = DatasetDescription(
 
 def load_wiki_atomic_edits():
     import string
+
     from datasets import concatenate_datasets
 
     letters_and_digits = set(string.ascii_letters + string.digits)

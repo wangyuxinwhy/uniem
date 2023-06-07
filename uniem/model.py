@@ -3,18 +3,18 @@ from itertools import islice
 from pathlib import Path
 from typing import ClassVar, Generator, Iterable, Literal, Type, TypeVar, cast
 
-import torch
 import numpy as np
+import torch
 import tqdm
 from transformers import AutoConfig, AutoModel, AutoTokenizer, PreTrainedModel
 
 from uniem.criteria import (
+    PairCoSentLoss,
     PairSigmoidContrastLoss,
     PairSoftmaxContrastLoss,
+    TripletCoSentLoss,
     TripletSigmoidContrastLoss,
     TripletSoftmaxContrastLoss,
-    PairCoSentLoss,
-    TripletCoSentLoss,
 )
 from uniem.types import Tokenizer
 

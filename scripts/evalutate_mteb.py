@@ -1,10 +1,11 @@
 """Example script for benchmarking all datasets constituting the MTEB English leaderboard & average scores"""
 
-import os
 import logging
+import os
 
 import typer
 from mteb import MTEB
+
 from uniem import UniEmbedder
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'

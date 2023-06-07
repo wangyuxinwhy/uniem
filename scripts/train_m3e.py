@@ -6,10 +6,11 @@ import typer
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration, set_seed
 from torch.utils.data import DataLoader
-from datasets import load_from_disk, concatenate_datasets, Dataset as HfDataset
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup
 
-from uniem.data import M3EDataset, PairCollator, M3EHfDatsetWithInfo
+from datasets import Dataset as HfDataset
+from datasets import concatenate_datasets, load_from_disk
+from uniem.data import M3EDataset, M3EHfDatsetWithInfo, PairCollator
 from uniem.model import EmbedderForPairTrain, EmbedderForTrain, EmbeddingStrategy, LossType
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType

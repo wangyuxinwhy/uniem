@@ -8,8 +8,8 @@ from accelerate.utils import ProjectConfiguration, set_seed
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup
 
-from uniem.data import MediDataset, TripletCollator, PairCollator
-from uniem.model import EmbedderForTripletTrain, EmbedderForPairTrain, EmbedderForTrain, EmbeddingStrategy, LossType
+from uniem.data import MediDataset, PairCollator, TripletCollator
+from uniem.model import EmbedderForPairTrain, EmbedderForTrain, EmbedderForTripletTrain, EmbeddingStrategy, LossType
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
 from uniem.utils import create_adamw_optimizer

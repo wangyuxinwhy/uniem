@@ -1,2 +1,6 @@
 text2vec
 sentence-transformers
+openai
+datasets
+mteb[beir]
+typer

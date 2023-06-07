@@ -1,9 +1,9 @@
 import json
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
-import typer
 import pandas as pd
+import typer
 
 
 def generate_report_csv(results_dir: Path, output_file: Path = Path('m3e-evaluate.csv')):
@@ -18,7 +18,7 @@ def generate_report_csv(results_dir: Path, output_file: Path = Path('m3e-evaluat
                 score: float = data['test']['accuracy']
             else:
                 score: float = data['validation']['accuracy']
-            scores[name].append((model_name, score))
+            scores[name].append((model_name, round(score, 4)))
 
     df = pd.DataFrame()
     for dataset, model_scores in scores.items():
