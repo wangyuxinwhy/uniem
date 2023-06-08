@@ -50,7 +50,7 @@ class OpenAIModel:
         self._client = openai.Embedding
         self.model_name = model_name
 
-    def encode(self, texts: str, batch_size: int = 32, **kwargs) -> list[np.ndarray]:
+    def encode(self, texts: list[str], batch_size: int = 32, **kwargs) -> list[np.ndarray]:
         all_embeddings = []
         for batch in tqdm(generate_batch(texts, batch_size), total=len(texts) // batch_size):
             embeddings = self._client.create(input=batch, engine=self.model_name)['data']   # type: ignore
@@ -69,7 +69,7 @@ class AzureModel:
         self._client = openai.Embedding
         self.model_name = model_name
 
-    def encode(self, texts: str, batch_size: int = 32, **kwargs) -> list[np.ndarray]:
+    def encode(self, texts: list[str], batch_size: int = 32, **kwargs) -> list[np.ndarray]:
         all_embeddings = []
         for text in tqdm(texts):
             embeddings = self._client.create(input=text, engine=self.model_name)['data']   # type: ignore
