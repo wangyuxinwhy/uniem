@@ -1,5 +1,6 @@
 import csv
 import logging
+import math
 import os
 import sys
 from collections import defaultdict
@@ -22,55 +23,6 @@ def generate_batch(data: Iterable[T], batch_size: int = 32) -> Generator[list[T]
     iterator = iter(data)
     while batch := list(islice(iterator, batch_size)):
         yield batch
-
-
-def load_t2ranking_for_reranking(rel_threshold: int | None = None):
-    rel_threshold = rel_threshold or DEFAULT_T2_REL_THRESHOLD
-    assert rel_threshold >= 1
-
-    collection_dataset = load_dataset('THUIR/T2Ranking', 'collection')['train']  # type: ignore
-    dev_queries_dataset = load_dataset('THUIR/T2Ranking', 'queries.dev')['train']  # type: ignore
-    dev_rels_dataset = load_dataset('THUIR/T2Ranking', 'qrels.dev')['train']  # type: ignore
-    dev_rels_dataset = cast(Iterable[dict], dev_rels_dataset)
-    records = defaultdict(lambda: [[], []])
-    query_map = {record['qid']: record['text'] for record in dev_queries_dataset}  # type: ignore
-
-    for rel_record in tqdm(dev_rels_dataset):
-        rel_record = cast(dict, rel_record)
-        qid = rel_record['qid']
-        pid = rel_record['pid']
-        rel_score = rel_record['rel']
-        query_text = query_map[qid]
-        passage_record = collection_dataset[pid]
-        assert passage_record['pid'] == pid
-        if rel_score >= rel_threshold:
-            records[query_text][0].append(passage_record['text'])
-        else:
-            records[query_text][1].append(passage_record['text'])
-
-    data = [{'query': k, 'positive': v[0], 'negative': v[1]} for k, v in records.items()]
-    dataset = Dataset.from_list(data)
-    dataset_dict = DatasetDict(dev=dataset)
-    return dataset_dict
-
-
-class T2RReranking(AbsTaskReranking):
-    @property
-    def description(self):
-        return {
-            'name': 'T2Reranking',
-            'reference': 'https://huggingface.co/datasets/THUIR/T2Ranking',
-            'type': 'Reranking',
-            'category': 's2s',
-            'eval_splits': ['dev'],
-            'eval_langs': ['zh'],
-            'main_score': 'map',
-        }
-
-    def load_data(self, **kwargs):
-        dataset = load_t2ranking_for_reranking()
-        self.dataset = dataset
-        self.data_loaded = True
 
 
 class TNews(AbsTaskClassification):
@@ -205,23 +157,100 @@ class GubaEastmony(AbsTaskClassification):
         self.data_loaded = True
 
 
-def load_t2ranking_for_retraviel():
+def load_t2ranking_for_reranking(rel_threshold: int):
+    assert rel_threshold >= 1
+
     collection_dataset = load_dataset('THUIR/T2Ranking', 'collection')['train']  # type: ignore
     dev_queries_dataset = load_dataset('THUIR/T2Ranking', 'queries.dev')['train']  # type: ignore
     dev_rels_dataset = load_dataset('THUIR/T2Ranking', 'qrels.dev')['train']  # type: ignore
+    dev_rels_dataset = cast(Iterable[dict], dev_rels_dataset)
+    records = defaultdict(lambda: [[], []])
+    query_map = {record['qid']: record['text'] for record in dev_queries_dataset}  # type: ignore
+
+    for rel_record in tqdm(dev_rels_dataset):
+        rel_record = cast(dict, rel_record)
+        qid = rel_record['qid']
+        pid = rel_record['pid']
+        rel_score = rel_record['rel']
+        query_text = query_map[qid]
+        passage_record = collection_dataset[pid]
+        assert passage_record['pid'] == pid
+        if rel_score >= rel_threshold:
+            records[query_text][0].append(passage_record['text'])
+        else:
+            records[query_text][1].append(passage_record['text'])
+
+    data = [{'query': k, 'positive': v[0], 'negative': v[1]} for k, v in records.items()]
+    dataset = Dataset.from_list(data)
+    dataset_dict = DatasetDict(dev=dataset)
+    return dataset_dict
+
+
+class T2RReranking(AbsTaskReranking):
+    def __init__(self, rel_threshold: int | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.rel_threshold = rel_threshold or DEFAULT_T2_REL_THRESHOLD
+
+    @property
+    def description(self):
+        return {
+            'name': 'T2Reranking',
+            'reference': 'https://huggingface.co/datasets/THUIR/T2Ranking',
+            'type': 'Reranking',
+            'category': 's2s',
+            'eval_splits': ['dev'],
+            'eval_langs': ['zh'],
+            'main_score': 'map',
+        }
+
+    def load_data(self, **kwargs):
+        dataset = load_t2ranking_for_reranking(self.rel_threshold)
+        self.dataset = dataset
+        self.data_loaded = True
+
+
+def load_t2ranking_for_retraviel(num_max_passages: float):
+    collection_dataset = load_dataset('THUIR/T2Ranking', 'collection')['train']  # type: ignore
+    dev_queries_dataset = load_dataset('THUIR/T2Ranking', 'queries.dev')['train']  # type: ignore
+    dev_rels_dataset = load_dataset('THUIR/T2Ranking', 'qrels.dev')['train']  # type: ignore
+    
     corpus = {}
     for record in collection_dataset:
-        corpus[str(record['pid'])] = {'text': record['text']}   # type: ignore
+        record = cast(dict, record)
+        pid: int = record['pid']
+        if pid > num_max_passages:
+            break
+        corpus[str(pid)] = {'text': record['text']}
+    
     queries = {}
     for record in dev_queries_dataset:
-        queries[str(record['qid'])] = record['text']  # type: ignore
-    qrels = {}
+        record = cast(dict, record)
+        queries[str(record['qid'])] = record['text']
+
+    all_qrels = defaultdict(dict)
     for record in dev_rels_dataset:
-        qrels[str(record['qid'])] = {str(record['pid']): record['rel']}  # type: ignore
-    return corpus, queries, qrels
+        record = cast(dict, record)
+        pid: int = record['pid']
+        if pid > num_max_passages:
+            continue
+        all_qrels[str(record['qid'])][str(record['pid'])] = record['rel']
+    valid_qrels = {}
+    for qid, qrels in all_qrels.items():
+        if len(set(list(qrels.values())) - set([0])) >= 1:
+            valid_qrels[qid] = qrels
+    valid_queries = {}
+    for qid, query in queries.items():
+        if qid in valid_qrels:
+            valid_queries[qid] = query
+    print(f'valid qrels: {len(valid_qrels)}')
+    return corpus, valid_queries, valid_qrels
 
 
 class T2RRetrieval(AbsTaskRetrieval):
+    def __init__(self, num_max_passages: int | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.num_max_passages = num_max_passages or math.inf
+
     @property
     def description(self):
         return {
@@ -235,7 +264,7 @@ class T2RRetrieval(AbsTaskRetrieval):
         }
 
     def load_data(self, **kwargs):
-        corpus, queries, qrels = load_t2ranking_for_retraviel()
+        corpus, queries, qrels = load_t2ranking_for_retraviel(self.num_max_passages)
         self.corpus, self.queries, self.relevant_docs = {}, {}, {}
         self.corpus['dev'] = corpus
         self.queries['dev'] = queries

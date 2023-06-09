@@ -2,8 +2,9 @@ import logging
 import os
 import time
 from itertools import islice
-from typing import Generator, Iterable, Optional, TypeVar
+from typing import Generator, Iterable, Optional, TypeVar, cast
 
+import torch
 import numpy as np
 import openai
 from tqdm import tqdm
@@ -38,6 +39,12 @@ def load_model_by_name(name: str):
         from models import AzureModel
 
         model = AzureModel()
+    elif 'luotuo' in name:
+        from models import LuotuoBertModel
+        if name == 'luotuo':
+            model = LuotuoBertModel()
+        else:
+            model = LuotuoBertModel(name)
     else:
         raise ValueError(f'Unknown model name: {name}')
     return model
@@ -77,3 +84,28 @@ class AzureModel:
             all_embeddings.extend(embeddings)
             time.sleep(0.01)
         return all_embeddings
+
+
+class LuotuoBertModel:
+    def __init__(self, model_name: str = 'silk-road/luotuo-bert') -> None:
+        from transformers import AutoTokenizer, AutoModel
+        from argparse import Namespace
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model_args = Namespace(do_mlm=None, pooler_type="cls", temp=0.05, mlp_only_train=False, init_embeddings_model=None)
+        self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True, model_args=model_args)
+    
+    def encode(self, texts: list[str], batch_size: int = 32, **kwargs) -> list[np.ndarray]:
+        all_embeddings: list[np.ndarray] = []
+        for batch_texts in tqdm(self.generate_batch(texts, batch_size), total=len(texts) // batch_size):
+            inputs = self.tokenizer(batch_texts, padding=True, truncation=True, return_tensors="pt", max_length=512)
+            with torch.no_grad():
+                embeddings = self.model(**inputs, output_hidden_states=True, return_dict=True, sent_emb=True).pooler_output
+            embeddings = cast(torch.Tensor, embeddings)
+            all_embeddings.extend(embeddings.cpu().numpy())
+        return all_embeddings
+
+    @staticmethod
+    def generate_batch(data: Iterable[T], batch_size: int = 32) -> Generator[list[T], None, None]:
+        iterator = iter(data)
+        while batch := list(islice(iterator, batch_size)):
+            yield batch
