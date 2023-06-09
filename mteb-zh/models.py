@@ -41,10 +41,12 @@ def load_model_by_name(name: str):
         model = AzureModel()
     elif 'luotuo' in name:
         from models import LuotuoBertModel
+
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         if name == 'luotuo':
-            model = LuotuoBertModel()
+            model = LuotuoBertModel(device=device)
         else:
-            model = LuotuoBertModel(name)
+            model = LuotuoBertModel(name, device=device)
     else:
         raise ValueError(f'Unknown model name: {name}')
     return model
@@ -87,17 +89,20 @@ class AzureModel:
 
 
 class LuotuoBertModel:
-    def __init__(self, model_name: str = 'silk-road/luotuo-bert') -> None:
+    def __init__(self, model_name: str = 'silk-road/luotuo-bert', device: str='cpu') -> None:
         from transformers import AutoTokenizer, AutoModel
         from argparse import Namespace
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         model_args = Namespace(do_mlm=None, pooler_type="cls", temp=0.05, mlp_only_train=False, init_embeddings_model=None)
         self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True, model_args=model_args)
+        self.model.to(device)
+        self.device = device
     
     def encode(self, texts: list[str], batch_size: int = 32, **kwargs) -> list[np.ndarray]:
         all_embeddings: list[np.ndarray] = []
         for batch_texts in tqdm(self.generate_batch(texts, batch_size), total=len(texts) // batch_size):
             inputs = self.tokenizer(batch_texts, padding=True, truncation=True, return_tensors="pt", max_length=512)
+            inputs = inputs.to(self.device)
             with torch.no_grad():
                 embeddings = self.model(**inputs, output_hidden_states=True, return_dict=True, sent_emb=True).pooler_output
             embeddings = cast(torch.Tensor, embeddings)
