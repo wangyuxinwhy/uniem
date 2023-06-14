@@ -103,24 +103,24 @@ class AzureModel:
 
 class ErLangShenModel:
     def __init__(self, model_name: str = 'IDEA-CCNL/Erlangshen-SimCSE-110M-Chinese', device: str | None = None) -> None:
-        from transformers import AutoTokenizer,AutoModelForMaskedLM
-        
+        from transformers import AutoTokenizer, AutoModelForMaskedLM
+
         if device is None:
             self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         else:
             self.device = device
-        self.model =AutoModelForMaskedLM.from_pretrained(model_name)
+        self.model = AutoModelForMaskedLM.from_pretrained(model_name)
         self.model.to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     def encode(self, sentences: list[str], batch_size: int = 32, **kwargs) -> list[np.ndarray]:
         all_embeddings: list[np.ndarray] = []
         for batch_texts in tqdm(generate_batch(sentences, batch_size), total=len(sentences) // batch_size):
-            inputs = self.tokenizer(batch_texts, padding=True, truncation=True, return_tensors="pt", max_length=512)
+            inputs = self.tokenizer(batch_texts, padding=True, truncation=True, return_tensors='pt', max_length=512)
             inputs = inputs.to(self.device)
             with torch.no_grad():
-                outputs = self.model(**inputs ,output_hidden_states=True)
-                embeddings = outputs.hidden_states[-1][:,0,:].squeeze()
+                outputs = self.model(**inputs, output_hidden_states=True)
+                embeddings = outputs.hidden_states[-1][:, 0, :].squeeze()
             embeddings = cast(torch.Tensor, embeddings)
             all_embeddings.extend(embeddings.cpu().numpy())
         return all_embeddings
@@ -137,14 +137,14 @@ class LuotuoBertModel:
             self.device = device
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model_args = Namespace(do_mlm=None, pooler_type="cls", temp=0.05, mlp_only_train=False, init_embeddings_model=None)
+        model_args = Namespace(do_mlm=None, pooler_type='cls', temp=0.05, mlp_only_train=False, init_embeddings_model=None)
         self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True, model_args=model_args)
         self.model.to(device)
-    
+
     def encode(self, sentences: list[str], batch_size: int = 32, **kwargs) -> list[np.ndarray]:
         all_embeddings: list[np.ndarray] = []
         for batch_texts in tqdm(generate_batch(sentences, batch_size), total=len(sentences) // batch_size):
-            inputs = self.tokenizer(batch_texts, padding=True, truncation=True, return_tensors="pt", max_length=512)
+            inputs = self.tokenizer(batch_texts, padding=True, truncation=True, return_tensors='pt', max_length=512)
             inputs = inputs.to(self.device)
             with torch.no_grad():
                 embeddings = self.model(**inputs, output_hidden_states=True, return_dict=True, sent_emb=True).pooler_output

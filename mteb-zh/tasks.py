@@ -213,7 +213,7 @@ def load_t2ranking_for_retraviel(num_max_passages: float):
     collection_dataset = load_dataset('THUIR/T2Ranking', 'collection')['train']  # type: ignore
     dev_queries_dataset = load_dataset('THUIR/T2Ranking', 'queries.dev')['train']  # type: ignore
     dev_rels_dataset = load_dataset('THUIR/T2Ranking', 'qrels.dev')['train']  # type: ignore
-    
+
     corpus = {}
     for record in collection_dataset:
         record = cast(dict, record)
@@ -221,7 +221,7 @@ def load_t2ranking_for_retraviel(num_max_passages: float):
         if pid > num_max_passages:
             break
         corpus[str(pid)] = {'text': record['text']}
-    
+
     queries = {}
     for record in dev_queries_dataset:
         record = cast(dict, record)

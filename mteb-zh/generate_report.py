@@ -1,33 +1,59 @@
+from enum import Enum
 import json
 from collections import defaultdict
 from pathlib import Path
+from dataclasses import dataclass
 
 import pandas as pd
 import typer
 
 
-task_score_field_mapping: dict[str, tuple[str, str]] = {
-    'T2Reranking': ('dev', 'map'),
-    'GubaEastmony': ('test', 'accuracy'),
-    'IFlyTek': ('validation', 'accuracy'),
-    'JDIphone': ('validation', 'accuracy'),
-    'StockComSentiment': ('validation', 'accuracy'),
-    'TNews': ('validation', 'accuracy'),
-    'TYQSentiment': ('validation', 'accuracy'),
-    'T2RankingRetrieval': ('dev', 'ndcg_at_10'),
+class TaskType(str, Enum):
+    classification = 'classification'
+    reranking = 'reranking'
+    retrieval = 'retrieval'
+
+
+@dataclass
+class ReportMainScore:
+    split: str
+    metric_name: str
+
+
+task_mapping: dict[TaskType, dict[str, ReportMainScore]] = {
+    TaskType.classification: {
+        'GubaEastmony': ReportMainScore('test', 'accuracy'),
+        'IFlyTek': ReportMainScore('validation', 'accuracy'),
+        'JDIphone': ReportMainScore('validation', 'accuracy'),
+        'StockComSentiment': ReportMainScore('validation', 'accuracy'),
+        'TNews': ReportMainScore('validation', 'accuracy'),
+        'TYQSentiment': ReportMainScore('validation', 'accuracy'),
+    },
+    TaskType.reranking: {
+        'T2RReranking': ReportMainScore('dev', 'map'),
+    },
+    TaskType.retrieval: {
+        'T2RankingRetrieval': ReportMainScore('dev', 'ndcg_at_10'),
+    },
 }
 
 
-def generate_report_csv(results_dir: Path, output_file: Path = Path('m3e-evaluate.csv')):
+def generate_report_csv(results_dir: Path, task_type: TaskType = TaskType.classification):
     scores = defaultdict(list)
+    output_file: Path = Path(f'mteb-zh-{task_type.value}.csv')
+
+    mapping = task_mapping[task_type]
 
     for dir in results_dir.iterdir():
         model_name = dir.name
         for path in dir.glob('*.json'):
             data = json.load(path.open())
             name = data['mteb_dataset_name']
-            field = task_score_field_mapping[name]
-            score: float = data[field[0]][field[1]]
+            if name not in mapping:
+                continue
+
+            report_main_score = mapping[name]
+            score: float = data[report_main_score.split][report_main_score.metric_name]
             scores[name].append((model_name, round(score, 4)))
 
     df = pd.DataFrame()
