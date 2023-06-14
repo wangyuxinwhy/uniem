@@ -2,7 +2,9 @@
 
 uniem 是 UNIfied Embedding Model 的缩写，uniem 项目的目标是创建中文最好的通用文本嵌入模型。
 
-本项目主要包括  Embedding 模型的训练脚本和评测脚本，模型和数据集会在 [HuggingFace](https://huggingface.co/) 社区上进行开源。
+本项目主要包括 Embedding 模型的训练脚本和评测脚本，模型和数据集会在 [HuggingFace](https://huggingface.co/) 社区上进行开源。
+
+中文 Embedding 模型缺少统一的评测标准，所以我们参考了 [MTEB](https://huggingface.co/spaces/mteb/leaderboard) ，构建了中文评测标准 MTEB-zh，目前已经对 6 种模型在各种数据集上进行了横屏，详细的评测结果请参考 [MTEB-zh]](https://github.com/wangyuxinwhy/uniem/tree/main/mteb-zh)。如果您想要在评测标准中添加评测数据集或者模型，欢迎提 issue 或者 PR，我们将第一时间进行支持，期待您的贡献！
 
 ## Model Releases
 
