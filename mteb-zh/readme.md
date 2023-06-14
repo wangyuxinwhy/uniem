@@ -15,9 +15,6 @@ MTEB-zh 是一个使用 [MTEB](https://github.com/embeddings-benchmark/mteb) 框
 
 ## 评测
 
-- 评测模型，[text2vec](https://github.com/shibing624/text2vec), m3e-base, m3e-small, openai text-embedding-ada-002, [DMetaSoul](https://huggingface.co/DMetaSoul/sbert-chinese-general-v2), [UER](https://huggingface.co/uer/sbert-base-chinese-nli), [ErLangShen](https://huggingface.co/IDEA-CCNL/Erlangshen-SimCSE-110M-Chinese)
-- 评测脚本，具体参考 [MTEB-zh] (https://github.com/wangyuxinwhy/uniem/blob/main/mteb-zh)
-
 ### 文本分类
 
 - 数据集选择，选择开源在 HuggingFace 上的 6 种文本分类数据集，包括新闻、电商评论、股票评论、长文本等

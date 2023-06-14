@@ -1,18 +1,22 @@
 # uniem
 
-uniem 是 UNIfied Embedding Model 的缩写，uniem 项目的目标是创建中文最好的通用文本嵌入模型。
+> uniem 是 **UNI**fied **E**mbedding **M**odel 的缩写
+
+**uniem 项目的目标是创建中文最好的通用文本嵌入模型**
 
 本项目主要包括 Embedding 模型的训练脚本和评测脚本，模型和数据集会在 [HuggingFace](https://huggingface.co/) 社区上进行开源。
 
-中文 Embedding 模型缺少统一的评测标准，所以我们参考了 [MTEB](https://huggingface.co/spaces/mteb/leaderboard) ，构建了中文评测标准 MTEB-zh，目前已经对 6 种模型在各种数据集上进行了横屏，详细的评测结果请参考 [MTEB-zh]](https://github.com/wangyuxinwhy/uniem/tree/main/mteb-zh)。如果您想要在评测标准中添加评测数据集或者模型，欢迎提 issue 或者 PR，我们将第一时间进行支持，期待您的贡献！
+中文 Embedding 模型缺少统一的评测标准，所以我们参考了 [MTEB](https://huggingface.co/spaces/mteb/leaderboard) ，构建了中文评测标准 MTEB-zh，目前已经对 6 种模型在各种数据集上进行了横评，详细的评测结果请参考 [MTEB-zh](https://github.com/wangyuxinwhy/uniem/tree/main/mteb-zh) 。
+
+如果您想要在 MTEB-zh 中添加评测数据集或者模型，欢迎提 issue 或者 PR，我会在第一时间进行支持，期待您的贡献！
 
 ## Model Releases
 
 ### 2023.06.08
 
-第一期的模型 [M3E models]([moka-ai/m3e-base](https://huggingface.co/moka-ai/m3e-base)) 已经开源在了 HuggingFace 上，在中文文本分类和文本检索上都优于 `openai-ada-002`，详请请参考 [M3E models README]([moka-ai/m3e-base](https://huggingface.co/moka-ai/m3e-base))。
+第一期的模型 [M3E models]([moka-ai/m3e-base](https://huggingface.co/moka-ai/m3e-base)) 已经开源在了 HuggingFace 上，在中文文本分类和文本检索上都优于 `openai text-embedding-ada-002`，详请请参考 [M3E models README]([moka-ai/m3e-base](https://huggingface.co/moka-ai/m3e-base))。
 
-## 使用模型
+## 使用 M3E
 
 M3E 系列的所有模型在设计的时候就考虑到完全兼容 [sentence-transformers](https://www.sbert.net/) ，所以你可以通过**替换名称字符串**的方式在所有支持 sentence-transformers 的项目中**无缝**使用 M3E Models，比如 [chroma](https://docs.trychroma.com/getting-started), [guidance](https://github.com/microsoft/guidance), [semantic-kernel](https://github.com/microsoft/semantic-kernel) 。
 
@@ -25,14 +29,13 @@ pip install sentence-transformers
 ### 加载模型
 
 ```python
-
 from sentence_transformers import SentenceTransformer
 
 model = SentenceTransformer("moka-ai/m3e-base")
 embeddings = model.encode(['Hello World!', '你好,世界!'])
 ```
 
-## 训练自己的模型
+## 训练/微调自己的模型
 
 ### 环境装备
 
