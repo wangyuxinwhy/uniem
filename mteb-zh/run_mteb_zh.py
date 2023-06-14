@@ -7,13 +7,13 @@ from mteb import MTEB
 from tasks import GubaEastmony, IFlyTek, JDIphone, StockComSentiment, T2RRetrieval, TNews, TYQSentiment, T2RReranking
 
 
-def main(name: ModelType, output_folder: Path = Path('results')):
+def main(model_type: ModelType, output_folder: Path = Path('results')):
     output_folder = Path(output_folder)
-    model = load_model(name)
+    model = load_model(model_type)
     evaluation = MTEB(
         tasks=[TYQSentiment(), TNews(), JDIphone(), StockComSentiment(), GubaEastmony(), IFlyTek(), T2RReranking(2), T2RRetrieval(100000)]
     )
-    evaluation.run(model, output_folder=str(output_folder / name))
+    evaluation.run(model, output_folder=str(output_folder / model_type.value))
 
 if __name__ == '__main__':
     typer.run(main)
