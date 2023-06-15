@@ -60,12 +60,37 @@ pip install -r requirements.txt
 2. 运行评测脚本
 ```bash
 # model_type: m3e_base, erlangshen, uer, d_meta_soul, openai, text2vec ...
-python run_mteb_zh <model_type>
+python run_mteb_zh <model_type> <model_name: Optional>
 ```
 3. 查看帮助
 ```bash
 python run_mteb_zh --help
 ```
+
+### 示例
+
+评测 M3E-base 模型
+```bash
+python run_mteb_zh sentence-transformer moka-ai/m3e-base
+```
+
+评测 UER 模型
+```bash
+python run_mteb_zh uer uer/sbert-base-chinese-nli
+```
+
+评测 ErLangShen 模型
+```bash
+python run_mteb_zh erlangshen
+```
+case ModelType.m3e_small:
+    return SentenceTransformer('moka-ai/m3e-small')
+case ModelType.m3e_base:
+    return SentenceTransformer('moka-ai/m3e-base')
+case ModelType.d_meta_soul:
+    return SentenceTransformer('DMetaSoul/sbert-chinese-general-v2')
+case ModelType.uer:
+    return SentenceTransformer('uer/sbert-base-chinese-nli')
 
 ## 评测你的模型
 

@@ -24,37 +24,46 @@ class MTEBModel(Protocol):
 
 
 class ModelType(str, Enum):
-    m3e_small = 'm3e_small'
-    m3e_base = 'm3e_base'
-    d_meta_soul = 'd_meta_soul'
-    uer = 'uer'
+    sentence_transformer = 'sentence_transformer'
     text2vec = 'text2vec'
-    openai = 'openai'
     luotuo = 'luotuo'
     erlangshen = 'erlangshen'
+    openai = 'openai'
     azure = 'azure'
 
 
-def load_model(model_type: ModelType) -> MTEBModel:
+def load_model(model_type: ModelType, model_name: str | None = None) -> MTEBModel:
     match model_type:
-        case ModelType.m3e_small:
-            return SentenceTransformer('moka-ai/m3e-small')
-        case ModelType.m3e_base:
-            return SentenceTransformer('moka-ai/m3e-base')
-        case ModelType.d_meta_soul:
-            return SentenceTransformer('DMetaSoul/sbert-chinese-general-v2')
-        case ModelType.uer:
-            return SentenceTransformer('uer/sbert-base-chinese-nli')
+        case ModelType.sentence_transformer:
+            if model_name is None:
+                raise ValueError('model_name must be specified for sentence_transformer')
+            return SentenceTransformer(model_name)
         case ModelType.text2vec:
             from text2vec import SentenceModel
-
-            return SentenceModel()
+            if model_name is None:
+                return SentenceModel()
+            else:
+                return SentenceModel(model_name)
         case ModelType.openai:
-            return OpenAIModel(model_name='text-embedding-ada-002')
+            if model_name is None:
+                return OpenAIModel(model_name='text-embedding-ada-002')
+            else:
+                return OpenAIModel(model_name=model_name)
+        case ModelType.azure:
+            if model_name is None:
+                return AzureModel(model_name='text-embedding-ada-002')
+            else:
+                return AzureModel(model_name=model_name)
         case ModelType.luotuo:
-            return LuotuoBertModel(model_name='silk-road/luotuo-bert')
+            if model_name is None:
+                return LuotuoBertModel(model_name='silk-road/luotuo-bert')
+            else:
+                return LuotuoBertModel(model_name=model_name)
         case ModelType.erlangshen:
-            return ErLangShenModel(model_name='IDEA-CCNL/Erlangshen-SimCSE-110M-Chinese')
+            if model_name is None:
+                return ErLangShenModel(model_name='IDEA-CCNL/Erlangshen-SimCSE-110M-Chinese')
+            else:
+                return ErLangShenModel(model_name=model_name)
         case _:
             raise ValueError(f'Unknown model type: {model_type}')
 

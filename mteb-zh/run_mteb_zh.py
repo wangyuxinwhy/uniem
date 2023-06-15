@@ -7,7 +7,7 @@ from mteb import MTEB
 from tasks import GubaEastmony, IFlyTek, JDIphone, StockComSentiment, T2RRetrieval, TNews, TYQSentiment, T2RReranking
 
 
-def main(model_type: ModelType, output_folder: Path = Path('results')):
+def main(model_type: ModelType, model_name: str | None = None, output_folder: Path = Path('results')):
     output_folder = Path(output_folder)
     model = load_model(model_type)
     evaluation = MTEB(
