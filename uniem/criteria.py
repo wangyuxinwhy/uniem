@@ -7,7 +7,7 @@ class ContrastLoss(torch.nn.Module):
         self.temperature = temperature
 
 
-class PairCoSentLoss(ContrastLoss):
+class PairInBatchNegCoSentLoss(ContrastLoss):
     def forward(
         self,
         text_embeddings: torch.Tensor,
@@ -21,12 +21,12 @@ class PairCoSentLoss(ContrastLoss):
         return loss
 
 
-class TripletCoSentLoss(ContrastLoss):
+class TripletInBatchNegCoSentLoss(ContrastLoss):
     def __init__(self, temperature: float = 0.05, add_swap_loss: bool = False):
         super().__init__(temperature)
         self.add_swap_loss = add_swap_loss
         if self.add_swap_loss:
-            self._pair_contrast_softmax_loss = PairCoSentLoss(temperature)
+            self._pair_contrast_softmax_loss = PairInBatchNegCoSentLoss(temperature)
         else:
             self._pair_contrast_softmax_loss = None
 
@@ -47,7 +47,7 @@ class TripletCoSentLoss(ContrastLoss):
         return loss
 
 
-class PairSoftmaxContrastLoss(ContrastLoss):
+class PairInBatchNegSoftmaxContrastLoss(ContrastLoss):
     def __init__(self, temperature: float = 0.05):
         super().__init__()
         self.temperature = temperature
@@ -65,12 +65,12 @@ class PairSoftmaxContrastLoss(ContrastLoss):
         return loss
 
 
-class TripletSoftmaxContrastLoss(ContrastLoss):
+class TripletInBatchNegSoftmaxContrastLoss(ContrastLoss):
     def __init__(self, temperature: float = 0.05, add_swap_loss: bool = False):
         super().__init__(temperature)
         self.add_swap_loss = add_swap_loss
         if self.add_swap_loss:
-            self._pair_contrast_softmax_loss = PairSoftmaxContrastLoss(temperature)
+            self._pair_contrast_softmax_loss = PairInBatchNegSoftmaxContrastLoss(temperature)
         else:
             self._pair_contrast_softmax_loss = None
 
@@ -91,7 +91,7 @@ class TripletSoftmaxContrastLoss(ContrastLoss):
         return loss
 
 
-class PairSigmoidContrastLoss(ContrastLoss):
+class PairInBatchNegSigmoidContrastLoss(ContrastLoss):
     def __init__(self, temperature: float = 0.05):
         super().__init__()
         self.temperature = temperature
@@ -114,12 +114,12 @@ class PairSigmoidContrastLoss(ContrastLoss):
         return loss
 
 
-class TripletSigmoidContrastLoss(ContrastLoss):
+class TripletInBatchNegSigmoidContrastLoss(ContrastLoss):
     def __init__(self, temperature: float = 0.05, add_swap_loss: bool = False):
         super().__init__(temperature)
         self.add_swap_loss = add_swap_loss
         if self.add_swap_loss:
-            self._pair_contrast_sigmoid_loss = PairSigmoidContrastLoss(temperature)
+            self._pair_contrast_sigmoid_loss = PairInBatchNegSigmoidContrastLoss(temperature)
         else:
             self._pair_contrast_sigmoid_loss = None
 
@@ -137,4 +137,24 @@ class TripletSigmoidContrastLoss(ContrastLoss):
         loss = -torch.log(torch.sigmoid(sim_diff_matrix)).mean()
         if self._pair_contrast_sigmoid_loss:
             loss += self._pair_contrast_sigmoid_loss(text_pos_embeddings, text_embeddings)
+        return loss
+
+
+class CoSentLoss(ContrastLoss):
+    bias: torch.Tensor
+
+    def __init__(self, temperature: float = 0.05) -> None:
+        super().__init__(temperature)
+        self.register_buffer('bias', torch.tensor([0.0]))
+
+    def forward(self, predict_similarity: torch.Tensor, true_similarity: torch.Tensor) -> torch.Tensor:
+        predict_similarity = predict_similarity / self.temperature
+
+        cosine_similarity_diff = -(predict_similarity.unsqueeze(0) - predict_similarity.unsqueeze(1))
+        smaller_mask = true_similarity.unsqueeze(0) <= true_similarity.unsqueeze(1)
+        cosine_similarity_diff = cosine_similarity_diff.masked_fill(smaller_mask, -1e12)
+
+        cosine_diff_scores_add_bias = torch.cat((cosine_similarity_diff.view(-1), self.bias))
+
+        loss = torch.logsumexp(cosine_diff_scores_add_bias, dim=0)
         return loss

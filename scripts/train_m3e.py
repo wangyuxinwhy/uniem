@@ -11,7 +11,7 @@ from transformers import AutoTokenizer, get_cosine_schedule_with_warmup
 from datasets import Dataset as HfDataset
 from datasets import concatenate_datasets, load_from_disk
 from uniem.data import M3EDataset, M3EHfDatsetWithInfo, PairCollator
-from uniem.model import EmbedderForPairTrain, EmbedderForTrain, EmbeddingStrategy, LossType
+from uniem.model import EmbedderForPairInBatchNegTrain, EmbedderForTrain, InBatchNegLossType, PoolingStrategy
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
 from uniem.utils import create_adamw_optimizer
@@ -44,8 +44,8 @@ def main(
     m3e_datasets_dir: Path,
     # Model
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
-    loss_type: Annotated[LossType, typer.Option(rich_help_panel='Model')] = LossType.softmax,
-    embedding_strategy: Annotated[EmbeddingStrategy, typer.Option(rich_help_panel='Model')] = EmbeddingStrategy.last_mean,
+    loss_type: Annotated[InBatchNegLossType, typer.Option(rich_help_panel='Model')] = InBatchNegLossType.softmax,
+    embedding_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
     # Data
     batch_size: Annotated[int, typer.Option(rich_help_panel='Data')] = 32,
     with_instruction: Annotated[bool, typer.Option(rich_help_panel='Data')] = True,
@@ -101,7 +101,7 @@ def main(
     )
     train_dataloader = accelerator.prepare(train_dataloader)
 
-    model = EmbedderForPairTrain(
+    model = EmbedderForPairInBatchNegTrain(
         model_name_or_path=model_name_or_path,
         temperature=temperature,
         loss_type=loss_type,

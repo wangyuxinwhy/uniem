@@ -4,8 +4,8 @@ import torch
 from tests import FIXTURES_DIR
 from uniem.model import (
     AutoEmbedder,
-    EmbedderForPairTrain,
-    EmbedderForTripletTrain,
+    EmbedderForPairInBatchNegTrain,
+    EmbedderForTripletInBatchNegTrain,
     FirstLastEmbedder,
     LastMeanEmbedder,
     LastWeightedEmbedder,
@@ -70,8 +70,10 @@ def test_mean_pooling():
 
 @pytest.mark.parametrize('loss_type', ['softmax', 'sigmoid', 'cosent'])
 def test_uniem_triplet_model(loss_type: str):
-    model1 = EmbedderForTripletTrain(model_name_or_path=str(FIXTURES_DIR / 'model'), temperature=0.05, loss_type=loss_type)
-    model2 = EmbedderForTripletTrain(
+    model1 = EmbedderForTripletInBatchNegTrain(
+        model_name_or_path=str(FIXTURES_DIR / 'model'), temperature=0.05, loss_type=loss_type
+    )
+    model2 = EmbedderForTripletInBatchNegTrain(
         model_name_or_path=str(FIXTURES_DIR / 'model'),
         temperature=0.05,
         loss_type=loss_type,
@@ -95,7 +97,7 @@ def test_uniem_triplet_model(loss_type: str):
 
 @pytest.mark.parametrize('loss_type', ['softmax', 'sigmoid', 'cosent'])
 def test_uniem_pair_model(loss_type: str):
-    model = EmbedderForPairTrain(
+    model = EmbedderForPairInBatchNegTrain(
         model_name_or_path=str(FIXTURES_DIR / 'model'),
         temperature=0.05,
         loss_type=loss_type,

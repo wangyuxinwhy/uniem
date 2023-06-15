@@ -9,7 +9,13 @@ from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup
 
 from uniem.data import MediDataset, PairCollator, TripletCollator
-from uniem.model import EmbedderForPairTrain, EmbedderForTrain, EmbedderForTripletTrain, EmbeddingStrategy, LossType
+from uniem.model import (
+    EmbedderForPairInBatchNegTrain,
+    EmbedderForTrain,
+    EmbedderForTripletInBatchNegTrain,
+    InBatchNegLossType,
+    PoolingStrategy,
+)
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
 from uniem.utils import create_adamw_optimizer
@@ -23,8 +29,8 @@ def main(
     medi_data_file: Path,
     # Model
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
-    loss_type: Annotated[LossType, typer.Option(rich_help_panel='Model')] = LossType.softmax,
-    embedding_strategy: Annotated[EmbeddingStrategy, typer.Option(rich_help_panel='Model')] = EmbeddingStrategy.last_mean,
+    loss_type: Annotated[InBatchNegLossType, typer.Option(rich_help_panel='Model')] = InBatchNegLossType.softmax,
+    embedding_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
     add_swap_loss: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
     # Data
     batch_size: Annotated[int, typer.Option(rich_help_panel='Data')] = 32,
@@ -89,7 +95,7 @@ def main(
 
     # Model
     if pair_or_triplet == 'triplet':
-        model = EmbedderForTripletTrain(
+        model = EmbedderForTripletInBatchNegTrain(
             model_name_or_path=model_name_or_path,
             temperature=temperature,
             loss_type=loss_type,
@@ -97,7 +103,7 @@ def main(
             add_swap_loss=add_swap_loss,
         )
     else:
-        model = EmbedderForPairTrain(
+        model = EmbedderForPairInBatchNegTrain(
             model_name_or_path=model_name_or_path,
             temperature=temperature,
             loss_type=loss_type,

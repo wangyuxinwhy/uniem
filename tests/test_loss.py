@@ -4,10 +4,10 @@ import pytest
 import torch
 
 from uniem.criteria import (
-    PairSigmoidContrastLoss,
-    PairSoftmaxContrastLoss,
-    TripletSigmoidContrastLoss,
-    TripletSoftmaxContrastLoss,
+    PairInBatchNegSigmoidContrastLoss,
+    PairInBatchNegSoftmaxContrastLoss,
+    TripletInBatchNegSigmoidContrastLoss,
+    TripletInBatchNegSoftmaxContrastLoss,
 )
 
 
@@ -168,11 +168,11 @@ def test_pair_contrast_loss(temperature: float):
     text_embeddings = torch.randn(10, 768)
     text_pos_embeddings = torch.randn(10, 768)
 
-    loss = PairSigmoidContrastLoss(temperature)(text_embeddings, text_pos_embeddings)
+    loss = PairInBatchNegSigmoidContrastLoss(temperature)(text_embeddings, text_pos_embeddings)
     naive_loss = naive_pair_contrast_sigmoid_loss(text_embeddings, text_pos_embeddings, temperature)
     assert torch.allclose(loss, naive_loss)
 
-    loss = PairSoftmaxContrastLoss(temperature)(text_embeddings, text_pos_embeddings)
+    loss = PairInBatchNegSoftmaxContrastLoss(temperature)(text_embeddings, text_pos_embeddings)
     naive_loss = naive_pair_contrast_softmax_loss(text_embeddings, text_pos_embeddings, temperature)
     assert torch.allclose(loss, naive_loss)
 
@@ -185,13 +185,17 @@ def test_triplet_contrast_loss(temperature: float, add_swap_loss: bool):
     text_pos_embeddings = torch.randn(10, 768)
     text_neg_embeddings = torch.randn(10, 768)
 
-    loss = TripletSoftmaxContrastLoss(temperature, add_swap_loss)(text_embeddings, text_pos_embeddings, text_neg_embeddings)
+    loss = TripletInBatchNegSoftmaxContrastLoss(temperature, add_swap_loss)(
+        text_embeddings, text_pos_embeddings, text_neg_embeddings
+    )
     naive_loss = naive_triplet_contrast_softmax_loss(
         text_embeddings, text_pos_embeddings, text_neg_embeddings, temperature, add_swap_loss
     )
     assert torch.allclose(loss, naive_loss)
 
-    loss = TripletSigmoidContrastLoss(temperature, add_swap_loss)(text_embeddings, text_pos_embeddings, text_neg_embeddings)
+    loss = TripletInBatchNegSigmoidContrastLoss(temperature, add_swap_loss)(
+        text_embeddings, text_pos_embeddings, text_neg_embeddings
+    )
     naive_loss = naive_triplet_contrast_sigmoid_loss(
         text_embeddings, text_pos_embeddings, text_neg_embeddings, temperature, add_swap_loss
     )

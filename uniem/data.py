@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import Dataset, RandomSampler
 
 from datasets import Dataset as HfDataset
-from uniem.data_structures import PairRecord, TripletRecord
+from uniem.data_structures import RecordType, PairRecord, ScoredPairRecord, TripletRecord, record_type_cls_map
 from uniem.types import Tokenizer
 
 
@@ -85,6 +85,56 @@ class TripletCollator:
             'text_pos_ids': text_pos_ids,
             'text_neg_ids': text_neg_ids,
         }
+
+
+class ScoredPairCollator:
+    def __init__(self, tokenizer: Tokenizer, max_length: int | None = None) -> None:
+        self.tokenizer = tokenizer
+        self.max_length = max_length or tokenizer.model_max_length
+
+    def __call__(self, records: list[ScoredPairRecord]) -> dict[str, torch.Tensor]:
+        texts = [record.sentence1 for record in records]
+        texts_pair = [record.sentence2 for record in records]
+        labels = [record.label for record in records]
+        labels = torch.tensor(labels, dtype=torch.float32)
+
+        text_ids = self.tokenizer(
+            texts,
+            padding=True,
+            max_length=self.max_length,
+            truncation=True,
+            return_tensors='pt',
+        )['input_ids']
+        text_ids = cast(torch.Tensor, text_ids)
+
+        text_pair_ids = self.tokenizer(
+            texts_pair,
+            padding=True,
+            max_length=self.max_length,
+            truncation=True,
+            return_tensors='pt',
+        )['input_ids']
+        text_pair_ids = cast(torch.Tensor, text_pair_ids)
+
+        return {
+            'text_ids': text_ids,
+            'text_pair_ids': text_pair_ids,
+            'labels': labels,
+        }
+
+
+class FinetuneDataset(Dataset):
+    def __init__(self, dataset: HfDataset, record_type: RecordType | str) -> None:
+        self.dataset = dataset
+        self.record_type = record_type
+        self.record_cls = record_type_cls_map[record_type]
+
+    def __getitem__(self, index: int):
+        record = self.dataset[index]
+        return self.record_cls(**record)
+
+    def __len__(self):
+        return len(self.dataset)
 
 
 class MediDataset(Dataset):

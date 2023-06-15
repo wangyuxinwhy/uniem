@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 class RecordType(str, Enum):
@@ -23,6 +24,13 @@ class TripletRecord:
 
 @dataclass(slots=True)
 class ScoredPairRecord:
-    text: str
-    text_pos: str
-    score: float
+    sentence1: str
+    sentence2: str
+    label: float
+
+
+record_type_cls_map: dict[RecordType, Any] = {
+    RecordType.PAIR: PairRecord,
+    RecordType.TRIPLET: TripletRecord,
+    RecordType.SCORED_PAIR: ScoredPairRecord,
+}
