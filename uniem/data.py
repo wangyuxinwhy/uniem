@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, cast, Sequence
 
 import torch
 from torch.utils.data import Dataset, RandomSampler
@@ -124,10 +124,10 @@ class ScoredPairCollator:
 
 
 class FinetuneDataset(Dataset):
-    def __init__(self, dataset: HfDataset, record_type: RecordType | str) -> None:
+    def __init__(self, dataset: HfDataset | Sequence[dict], record_type: RecordType | str) -> None:
         self.dataset = dataset
-        self.record_type = record_type
-        self.record_cls = record_type_cls_map[record_type]
+        self.record_type = RecordType(record_type)
+        self.record_cls = record_type_cls_map[self.record_type]
 
     def __getitem__(self, index: int):
         record = self.dataset[index]
