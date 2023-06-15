@@ -14,7 +14,7 @@
 
 ### 2023.06.08
 
-第一期的模型 [M3E models]([moka-ai/m3e-base](https://huggingface.co/moka-ai/m3e-base)) 已经开源在了 HuggingFace 上，在中文文本分类和文本检索上都优于 `openai text-embedding-ada-002`，详请请参考 [M3E models README]([moka-ai/m3e-base](https://huggingface.co/moka-ai/m3e-base))。
+第一期的模型 [M3E models](https://huggingface.co/moka-ai/m3e-base) 已经开源在了 HuggingFace 上，在中文文本分类和文本检索上都优于 `openai text-embedding-ada-002`，详请请参考 [M3E models README](https://huggingface.co/moka-ai/m3e-base/blob/main/README.md)。
 
 ## 使用 M3E
 
