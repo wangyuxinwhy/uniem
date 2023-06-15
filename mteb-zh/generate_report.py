@@ -16,7 +16,7 @@ class ReportMainScore:
 
 
 task_mapping: dict[TaskType, dict[str, ReportMainScore]] = {
-    TaskType.classification: {
+    TaskType.Classification: {
         'GubaEastmony': ReportMainScore('test', 'accuracy'),
         'IFlyTek': ReportMainScore('validation', 'accuracy'),
         'JDIphone': ReportMainScore('validation', 'accuracy'),
@@ -24,14 +24,14 @@ task_mapping: dict[TaskType, dict[str, ReportMainScore]] = {
         'TNews': ReportMainScore('validation', 'accuracy'),
         'TYQSentiment': ReportMainScore('validation', 'accuracy'),
     },
-    TaskType.reranking: {
+    TaskType.Reranking: {
         'T2RReranking': ReportMainScore('dev', 'map'),
     },
-    TaskType.retrieval: {
+    TaskType.Retrieval: {
         'T2RankingRetrieval': ReportMainScore('dev', 'ndcg_at_10'),
     },
 }
-task_mapping[TaskType.all] = {k: v for _, mapping in task_mapping for k, v in mapping.items()}
+task_mapping[TaskType.All] = {k: v for _, mapping in task_mapping.items() for k, v in mapping.items()}
 
 
 def generate_report_csv(results_dir: Path, task_type: TaskType = TaskType.Classification):

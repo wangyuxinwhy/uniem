@@ -37,6 +37,21 @@ embeddings = model.encode(['Hello World!', '你好,世界!'])
 
 ## 训练/微调自己的模型
 
+`uniem` 提供了非常易用的 finetune 接口，几行代码就可完成微调，就像这样
+
+```python
+from datasets import load_dataset
+
+from uniem.finetuner import FineTuner
+
+dataset = load_dataset('shibing624/nli_zh', 'STS-B')
+# 指定训练的模型为 m3e-small
+finetuner = FineTuner('moka-ai/m3e-small', dataset=dataset)
+finetuner.run(epochs=1)
+```
+
+你可以试用 colab 来体验一下 [colab 微调脚本](https://colab.research.google.com/github/wangyuxinwhy/uniem/blob/main/examples/finetune.ipynb)
+
 ### 环境装备
 
 1. 安装虚拟环境
