@@ -34,7 +34,7 @@ task_mapping: dict[TaskType, dict[str, ReportMainScore]] = {
 task_mapping[TaskType.all] = {k: v for _, mapping in task_mapping for k, v in mapping.items()}
 
 
-def generate_report_csv(results_dir: Path, task_type: TaskType = TaskType.classification):
+def generate_report_csv(results_dir: Path, task_type: TaskType = TaskType.Classification):
     scores = defaultdict(list)
     output_file: Path = Path(f'mteb-zh-{task_type.value}.csv')
 

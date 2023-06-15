@@ -16,10 +16,10 @@ csv.field_size_limit(sys.maxsize)
 
 
 class TaskType(str, Enum):
-    classification = 'classification'
-    reranking = 'reranking'
-    retrieval = 'retrieval'
-    all = 'all'
+    Classification = 'Classification'
+    Reranking = 'Reranking'
+    Retrieval = 'Retrieval'
+    All = 'All'
 
 
 class TNews(AbsTaskClassification):
