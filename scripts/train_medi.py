@@ -6,7 +6,7 @@ import typer
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration, set_seed
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer, get_cosine_schedule_with_warmup
+from transformers import AutoTokenizer, get_cosine_schedule_with_warmup  # type: ignore
 
 from uniem.data import MediDataset, PairCollator, TripletCollator
 from uniem.model import (

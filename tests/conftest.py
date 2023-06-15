@@ -1,5 +1,5 @@
 import pytest
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoModel, AutoTokenizer  # type: ignore
 
 from tests import FIXTURES_DIR
 from uniem.data_structures import TripletRecord

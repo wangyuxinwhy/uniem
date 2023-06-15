@@ -109,7 +109,7 @@ class AzureModel:
 
 class ErLangShenModel:
     def __init__(self, model_name: str = 'IDEA-CCNL/Erlangshen-SimCSE-110M-Chinese', device: str | None = None) -> None:
-        from transformers import AutoTokenizer, AutoModelForMaskedLM
+        from transformers import AutoTokenizer, AutoModelForMaskedLM  # type: ignore
 
         if device is None:
             self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -134,7 +134,7 @@ class ErLangShenModel:
 
 class LuotuoBertModel:
     def __init__(self, model_name: str = 'silk-road/luotuo-bert', device: str | None = None) -> None:
-        from transformers import AutoTokenizer, AutoModel
+        from transformers import AutoTokenizer, AutoModel  # type: ignore
         from argparse import Namespace
 
         if device is None:

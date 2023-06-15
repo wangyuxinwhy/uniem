@@ -152,3 +152,9 @@ python scripts/train_medi.py --help
 python scripts/train_medi.py <model_path_or_name> <data_file>
 ```
 其中 `<model_path_or_name>` 可以是 HuggingFace 上的模型名称，比如 `sentence-transformers/gtr-t5-large` ，也可以是本地的模型路径， `<data_file>` 是训练数据 json 的路径，比如 `medi.json`。 `medi.json` 可以在 [instructor-embedding](https://instructor-embedding.github.io/) 的项目中下载。
+
+
+### TODO
+
+- [] 在 ReadTheDoc 上添加文档
+- [] 添加 logo 和 Features

@@ -8,7 +8,7 @@ from datasets import DatasetDict, Dataset
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration, set_seed
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer, get_cosine_schedule_with_warmup
+from transformers import AutoTokenizer, get_cosine_schedule_with_warmup  # type: ignore
 
 from uniem.data import PairCollator, ScoredPairCollator, TripletCollator, FinetuneDataset
 from uniem.data_structures import RecordType, record_type_cls_map

@@ -5,7 +5,7 @@ from typing import ClassVar, Literal, Type, TypeVar, cast
 import tqdm
 import torch
 import numpy as np
-from transformers import AutoTokenizer, AutoConfig, AutoModel, PreTrainedModel
+from transformers import AutoTokenizer, AutoConfig, AutoModel, PreTrainedModel  # type: ignore
 
 from uniem.criteria import (
     CoSentLoss,
@@ -50,7 +50,7 @@ def mean_pooling(hidden_state: torch.Tensor, mask: torch.Tensor | None = None) -
 def load_hf_pretrained_model(model_name_or_path: str) -> PreTrainedModel:
     config = AutoConfig.from_pretrained(model_name_or_path)
     if config.model_type == 't5':
-        from transformers import T5EncoderModel
+        from transformers import T5EncoderModel  # type: ignore
 
         pretrained_model = T5EncoderModel.from_pretrained(model_name_or_path)
     else:
