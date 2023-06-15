@@ -42,7 +42,7 @@ def main(
     if task_type is TaskType.All:
         tasks = default_tasks
     else:
-        tasks = [task for task in default_tasks if task.description()['type'] == task_type.value]
+        tasks = [task for task in default_tasks if task.description['type'] == task_type.value]  # type: ignore
 
     evaluation = MTEB(tasks=tasks)
     model_id = model_type.value + (f'-{model_name.replace("/", "-")}' if model_name else '')
