@@ -45,7 +45,8 @@ def main(
         tasks = [task for task in default_tasks if task.description['type'] == task_type.value]
 
     evaluation = MTEB(tasks=tasks)
-    evaluation.run(model, output_folder=str(output_folder / model_type.value))
+    model_id = model_type.value + (f'-{model_name.replace("/", "-")}' if model_name else '')
+    evaluation.run(model, output_folder=str(output_folder / model_id))
 
 
 if __name__ == '__main__':
