@@ -2,7 +2,7 @@ from dataclasses import fields
 import os
 import logging
 from pathlib import Path
-from typing import cast
+from typing import Sequence, cast
 
 from datasets import DatasetDict, Dataset
 from accelerate import Accelerator
@@ -32,28 +32,32 @@ class FineTuner:
     def __init__(
         self,
         model_name_or_path: str,
-        dataset_dict: Dataset | DatasetDict,
+        dataset: Sequence[dict] | dict[str, Sequence[dict]] | DatasetDict | Dataset,
     ):
         self.model_name_or_path = model_name_or_path
 
-        self.dataset_dict = dataset_dict
-        if isinstance(dataset_dict, DatasetDict):
-            train_dataset = dataset_dict['train']
-            if 'dev' in dataset_dict:
-                validation_dataset = dataset_dict['dev']
-            elif 'validation' in dataset_dict:
-                validation_dataset = dataset_dict['validation']
+        self.raw_dataset = dataset
+        if isinstance(dataset, dict):
+            train_dataset = dataset['train']
+            if 'dev' in dataset:
+                validation_dataset = dataset['dev']
+            elif 'validation' in dataset:
+                validation_dataset = dataset['validation']
             else:
                 logger.warning(
                     'No validation dataset found in dataset_dict, validation dataset key should be either "dev" or "validation"'
                 )
                 validation_dataset = None
         else:
-            train_dataset = dataset_dict
+            train_dataset = dataset
+            validation_dataset = None
+
         self.record_type = self.get_record_type(train_dataset[0])
         self.train_dataset = FinetuneDataset(train_dataset, self.record_type)
         if validation_dataset is not None:
             self.validation_dataset = FinetuneDataset(validation_dataset, self.record_type)
+        else:
+            self.validation_dataset = None
 
     def get_record_type(self, record: dict) -> RecordType:
         record_type_field_names_map = {
@@ -82,13 +86,13 @@ class FineTuner:
         use_tensorboard: bool = False,
         num_workers: int = 0,
         seed: int = 42,
-        output_dir: Path | None = None,
+        output_dir: Path | str | None = None,
     ):
         os.environ.setdefault('TRANSFORMERS_NO_ADVISORY_WARNINGS', '1')
         if num_workers >= 1:
             os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
 
-        output_dir = output_dir or Path('finetuned-model')
+        output_dir = Path(output_dir) if output_dir is not None else Path('finetuned-model')
         project_config = ProjectConfiguration(
             project_dir=str(output_dir), automatic_checkpoint_naming=True, total_limit=num_max_checkpoints
         )
@@ -137,6 +141,8 @@ class FineTuner:
                 drop_last=False,
             )
             validation_dataloader = accelerator.prepare(validation_dataloader)
+        else:
+            validation_dataloader = None
 
         match self.record_type:
             case RecordType.PAIR:

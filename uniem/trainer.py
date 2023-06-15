@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import torch
-import tqdm
+from tqdm.auto import tqdm
 from accelerate import Accelerator
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
@@ -123,7 +123,7 @@ class DistributedTqdmProgressBar:
 
     def on_epoch_start(self):
         if self.accelerator.is_main_process:
-            self.progress_bar = tqdm.tqdm(total=self.num_steps_per_epoch, **self.tqdm_kwargs)
+            self.progress_bar = tqdm(total=self.num_steps_per_epoch, **self.tqdm_kwargs)
         else:
             self.progress_bar = DummyProgressBar()
 
