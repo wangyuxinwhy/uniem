@@ -1,28 +1,25 @@
 import csv
-import logging
+from enum import Enum
 import math
-import os
 import sys
 from collections import defaultdict
-from itertools import islice
-from typing import Generator, Iterable, TypeVar, cast
+from typing import Iterable, TypeVar, cast
 
 from mteb.abstasks import AbsTaskClassification, AbsTaskReranking, AbsTaskRetrieval
 from tqdm import tqdm
 
 from datasets import Dataset, DatasetDict, load_dataset
 
-os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-logging.basicConfig(level=logging.INFO)
+
 T = TypeVar('T')
-DEFAULT_T2_REL_THRESHOLD = 2
 csv.field_size_limit(sys.maxsize)
 
 
-def generate_batch(data: Iterable[T], batch_size: int = 32) -> Generator[list[T], None, None]:
-    iterator = iter(data)
-    while batch := list(islice(iterator, batch_size)):
-        yield batch
+class TaskType(str, Enum):
+    classification = 'classification'
+    reranking = 'reranking'
+    retrieval = 'retrieval'
+    all = 'all'
 
 
 class TNews(AbsTaskClassification):
@@ -187,9 +184,9 @@ def load_t2ranking_for_reranking(rel_threshold: int):
 
 
 class T2RReranking(AbsTaskReranking):
-    def __init__(self, rel_threshold: int | None = None, **kwargs):
+    def __init__(self, rel_threshold: int = 2, **kwargs):
         super().__init__(**kwargs)
-        self.rel_threshold = rel_threshold or DEFAULT_T2_REL_THRESHOLD
+        self.rel_threshold = rel_threshold
 
     @property
     def description(self):

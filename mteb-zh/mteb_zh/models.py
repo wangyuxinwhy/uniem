@@ -1,5 +1,4 @@
 from enum import Enum
-import logging
 import os
 import time
 from itertools import islice
@@ -11,9 +10,6 @@ import openai
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 
-os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-
-logging.basicConfig(level=logging.INFO)
 
 T = TypeVar('T')
 
@@ -40,6 +36,7 @@ def load_model(model_type: ModelType, model_name: str | None = None) -> MTEBMode
             return SentenceTransformer(model_name)
         case ModelType.text2vec:
             from text2vec import SentenceModel
+
             if model_name is None:
                 return SentenceModel()
             else:

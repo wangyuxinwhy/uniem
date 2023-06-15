@@ -1,4 +1,3 @@
-from enum import Enum
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -7,11 +6,7 @@ from dataclasses import dataclass
 import pandas as pd
 import typer
 
-
-class TaskType(str, Enum):
-    classification = 'classification'
-    reranking = 'reranking'
-    retrieval = 'retrieval'
+from mteb_zh.tasks import TaskType
 
 
 @dataclass
@@ -36,6 +31,7 @@ task_mapping: dict[TaskType, dict[str, ReportMainScore]] = {
         'T2RankingRetrieval': ReportMainScore('dev', 'ndcg_at_10'),
     },
 }
+task_mapping[TaskType.all] = {k: v for _, mapping in task_mapping for k, v in mapping.items()}
 
 
 def generate_report_csv(results_dir: Path, task_type: TaskType = TaskType.classification):
