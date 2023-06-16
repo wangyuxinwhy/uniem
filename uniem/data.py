@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import Dataset, RandomSampler
 
 from datasets import Dataset as HfDataset
-from uniem.data_structures import RecordType, PairRecord, ScoredPairRecord, TripletRecord, record_type_cls_map
+from uniem.data_structures import RecordType, PairRecord, ScoredPairRecord, TripletRecord, get_record_type, record_type_cls_map
 from uniem.types import Tokenizer
 
 
@@ -124,9 +124,12 @@ class ScoredPairCollator:
 
 
 class FinetuneDataset(Dataset):
-    def __init__(self, dataset: HfDataset | Sequence[dict], record_type: RecordType | str) -> None:
+    def __init__(self, dataset: HfDataset | Sequence[dict], record_type: RecordType | str | None = None) -> None:
         self.dataset = dataset
-        self.record_type = RecordType(record_type)
+        if record_type:
+            self.record_type = RecordType(record_type)
+        else:
+            self.record_type = get_record_type(dataset[0])
         self.record_cls = record_type_cls_map[self.record_type]
 
     def __getitem__(self, index: int):
@@ -135,6 +138,23 @@ class FinetuneDataset(Dataset):
 
     def __len__(self):
         return len(self.dataset)
+
+
+class PrefixFinetuneDataset(FinetuneDataset):
+    def __init__(self, dataset: HfDataset | Sequence[dict], prefix: str, record_type: RecordType | str | None = None) -> None:
+        super().__init__(dataset=dataset, record_type=record_type)
+        self.prefix = prefix
+
+    def __getitem__(self, index: int):
+        record = self.dataset[index]
+        match self.record_type:
+            case RecordType.PAIR:
+                record['text'] = self.prefix + record['text']
+            case RecordType.TRIPLET:
+                record['text'] = self.prefix + record['text']
+            case RecordType.SCORED_PAIR:
+                record['sentence1'] = self.prefix + record['sentence1']
+        return self.record_cls(**record)
 
 
 class MediDataset(Dataset):

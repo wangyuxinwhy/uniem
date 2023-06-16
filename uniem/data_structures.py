@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from enum import Enum
 from typing import Any
 
@@ -34,3 +34,13 @@ record_type_cls_map: dict[RecordType, Any] = {
     RecordType.TRIPLET: TripletRecord,
     RecordType.SCORED_PAIR: ScoredPairRecord,
 }
+
+
+def get_record_type(record: dict) -> RecordType:
+    record_type_field_names_map = {
+        record_type: [field.name for field in fields(record_cls)] for record_type, record_cls in record_type_cls_map.items()
+    }
+    for record_type, field_names in record_type_field_names_map.items():
+        if all(field_name in record for field_name in field_names):
+            return record_type
+    raise ValueError(f'Unknown record type, record: {record}')

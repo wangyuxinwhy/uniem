@@ -176,6 +176,8 @@ class AutoEmbedder:
 
 
 class EmbedderForTrain(torch.nn.Module):
+    embedder: Embedder
+
     def __init__(self, embedder: Embedder):
         super().__init__()
         self.embedder = embedder
