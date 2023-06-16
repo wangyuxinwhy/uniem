@@ -5,7 +5,7 @@ import sys
 from collections import defaultdict
 from typing import Iterable, TypeVar, cast
 
-from mteb.abstasks import AbsTaskClassification, AbsTaskReranking, AbsTaskRetrieval
+from mteb.abstasks import AbsTaskClassification, AbsTaskReranking, AbsTaskRetrieval, AbsTaskPairClassification
 from tqdm import tqdm
 
 from datasets import Dataset, DatasetDict, load_dataset
@@ -19,7 +19,33 @@ class TaskType(str, Enum):
     Classification = 'Classification'
     Reranking = 'Reranking'
     Retrieval = 'Retrieval'
+    PairClassification = 'PairClassification'
     All = 'All'
+
+
+class MedQQPairs(AbsTaskPairClassification):
+    @property
+    def description(self):
+        return {
+            "name": "MedQQPairs",
+            "hf_hub_name": "vegaviazhang/Med_QQpairs",
+            "category": "s2s",
+            "type": "PairClassification",
+            "eval_splits": ["train"],
+            "eval_langs": ["zh"],
+            "main_score": "ap"
+        }
+
+    def load_data(self, **kwargs):
+        dataset = load_dataset('vegaviazhang/Med_QQpairs')['train']  # type: ignore
+        record = {'sent1': [], 'sent2': [], 'labels': []}
+        for item in dataset:
+            item = cast(dict, item)
+            record['sent1'].append(item['question1'])
+            record['sent2'].append(item['question2'])
+            record['labels'].append(item['label'])
+        self.dataset = DatasetDict(train=Dataset.from_list([record]))
+        self.data_loaded = True
 
 
 class TNews(AbsTaskClassification):

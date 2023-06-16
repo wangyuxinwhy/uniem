@@ -15,6 +15,7 @@ from mteb_zh.tasks import (
     TNews,
     TYQSentiment,
     T2RReranking,
+    MedQQPairs,
 )
 
 
@@ -27,6 +28,7 @@ default_tasks: list[AbsTask] = [
     IFlyTek(),
     T2RReranking(2),
     T2RRetrieval(10000),
+    MedQQPairs(),
 ]
 
 
