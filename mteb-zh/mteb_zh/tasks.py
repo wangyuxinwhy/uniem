@@ -27,13 +27,13 @@ class MedQQPairs(AbsTaskPairClassification):
     @property
     def description(self):
         return {
-            "name": "MedQQPairs",
-            "hf_hub_name": "vegaviazhang/Med_QQpairs",
-            "category": "s2s",
-            "type": "PairClassification",
-            "eval_splits": ["train"],
-            "eval_langs": ["zh"],
-            "main_score": "ap"
+            'name': 'MedQQPairs',
+            'hf_hub_name': 'vegaviazhang/Med_QQpairs',
+            'category': 's2s',
+            'type': 'PairClassification',
+            'eval_splits': ['train'],
+            'eval_langs': ['zh'],
+            'main_score': 'ap',
         }
 
     def load_data(self, **kwargs):

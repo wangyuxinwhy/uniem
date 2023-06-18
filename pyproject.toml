@@ -22,6 +22,7 @@ blue = "^0.9.1"
 ruff = "^0.0.265"
 isort = "^5.12.0"
 mteb = "^1.0.2"
+pyright = "^1.1.314"
 
 [tool.ruff]
 line-length = 128
