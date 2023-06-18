@@ -21,7 +21,7 @@ body:
     id: type
     attributes:
       label: model type
-      desciption: |
+      description: |
         MTEB-zh 支持多种类型的文本嵌入模型，比如 sentence_transformer, text2vec, luotuo 等。
         您可以在[这里](https://github.com/wangyuxinwhy/uniem/blob/main/mteb-zh/mteb_zh/models.py)找到全部支持的类型。
         如果 MTEB-zh 还未支持您的模型，请选择 others ，并在 model description 提供使用方式。
@@ -31,8 +31,8 @@ body:
         - luotuo
         - erlangshen
         - others
-      validations:
-        required: true
+    validations:
+      required: true
   - type: input
     id: id
     attributes:

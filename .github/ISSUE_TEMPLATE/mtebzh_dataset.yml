@@ -29,7 +29,7 @@ body:
     id: task_type
     attributes:
       label: task type
-      desciption: MTEB-zh 支持多种类型的文本嵌入评测任务，比如文本分类，文本检索，文本聚类等，如果您不确定您的数据集属于何种任务，可以不进行选择。
+      description: MTEB-zh 支持多种类型的文本嵌入评测任务，比如文本分类，文本检索，文本聚类等，如果您不确定您的数据集属于何种任务，可以不进行选择。
       options:
         - Classification
         - PairClassification
