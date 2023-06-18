@@ -34,12 +34,13 @@ default_tasks: list[AbsTask] = [
 
 def main(
     model_type: Annotated[ModelType, typer.Option()],
+    model_id: str | None = None,
     model_name: str | None = None,
     task_type: TaskType = TaskType.Classification,
     output_folder: Path = Path('results'),
 ):
     output_folder = Path(output_folder)
-    model = load_model(model_type, model_name)
+    model = load_model(model_type, model_id)
 
     if task_type is TaskType.All:
         tasks = default_tasks
@@ -47,8 +48,9 @@ def main(
         tasks = [task for task in default_tasks if task.description['type'] == task_type.value]  # type: ignore
 
     evaluation = MTEB(tasks=tasks)
-    model_id = model_type.value + (f'-{model_name.replace("/", "-")}' if model_name else '')
-    evaluation.run(model, output_folder=str(output_folder / model_id))
+    if model_name is None:
+        model_name = model_type.value + (f'-{model_id.replace("/", "-")}' if model_id else '')
+    evaluation.run(model, output_folder=str(output_folder / model_name))
 
 
 if __name__ == '__main__':

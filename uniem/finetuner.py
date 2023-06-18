@@ -1,17 +1,18 @@
 import functools
-import os
 import logging
+import os
 from pathlib import Path
 from typing import Sequence, cast
 
 import torch
-from datasets import DatasetDict as HFDatasetDict, Dataset as HFDataset
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration, set_seed
+from datasets import Dataset as HFDataset
+from datasets import DatasetDict as HFDatasetDict
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup  # type: ignore
 
-from uniem.data import PairCollator, ScoredPairCollator, TripletCollator, FinetuneDataset, PrefixFinetuneDataset
+from uniem.data import FinetuneDataset, PairCollator, PrefixFinetuneDataset, ScoredPairCollator, TripletCollator
 from uniem.data_structures import RecordType, get_record_type
 from uniem.model import (
     EmbedderForPairInBatchNegTrain,
@@ -24,7 +25,6 @@ from uniem.model import (
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
 from uniem.utils import create_adamw_optimizer, split_dataset_dict
-
 
 logger = logging.getLogger(__name__)
 RawDataset = Sequence[dict] | dict[str, Sequence[dict]] | HFDatasetDict | HFDataset
@@ -219,7 +219,7 @@ class PrefixFineTuner(FineTuner):
         super().__init__(model_name_or_path, dataset)
         self.special_prefix_tokens = additional_special_tokens
         self.prefix = ''.join(self.special_prefix_tokens) if prefix is None else prefix
-        self.tokenizer.add_special_tokens({'additional_special_tokens': additional_special_tokens})
+        self.tokenizer.add_special_tokens({'additional_special_tokens': additional_special_tokens})  # type: ignore
         self.additional_special_token_ids = self.tokenizer.convert_tokens_to_ids(additional_special_tokens)
         self.only_train_additional_special_tokens = only_train_additional_special_tokens
 
@@ -241,9 +241,10 @@ class PrefixFineTuner(FineTuner):
         if self.only_train_additional_special_tokens:
             for param in model.parameters():
                 param.requires_grad = False
-            embedding_layer = model.embedder.encoder.get_input_embeddings()
-            embedding_layer.weight.requires_grad = True
-            embedding_layer.weight.register_hook(hook)
+            embedding_layer_weight = model.embedder.encoder.get_input_embeddings().weight
+            embedding_layer_weight = cast(torch.nn.Parameter, embedding_layer_weight)
+            embedding_layer_weight.requires_grad = True
+            embedding_layer_weight.register_hook(hook)
         return model
 
     def run(

@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 import torch
-from tqdm.auto import tqdm
 from accelerate import Accelerator
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
 
 
 class Trainer:

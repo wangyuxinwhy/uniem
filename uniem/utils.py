@@ -1,5 +1,5 @@
-from itertools import islice
 import logging
+from itertools import islice
 from typing import Generator, Iterable, TypeVar
 
 import torch

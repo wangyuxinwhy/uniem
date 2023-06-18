@@ -1,0 +1,16 @@
+name: 🚀 Feature request
+description: 提交您希望 uniem 支持的新特性
+labels: enhancement
+assignees:
+  - wangyuxinwhy
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 🚀 The feature
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: >
+        感谢您的支持 🎉!

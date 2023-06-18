@@ -298,7 +298,7 @@ def load_miracl():
     dataset_dict = cast(DatasetDict, dataset_dict)
 
     try:
-        from zhconv import convert
+        from zhconv import convert  # type: ignore
     except ImportError:
         raise ImportError('Please install zhconv first: pip install zhconv')
 

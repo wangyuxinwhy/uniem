@@ -1,0 +1,45 @@
+name: 💎 MTEB-zh Model
+description: 提交您希望 MTEB-zh 支持的模型
+labels: model
+assignees:
+  - wangyuxinwhy
+body:
+  - type: markdown
+    attributes:
+      value: |
+        MTEB-zh 是以 [MTEB](https://github.com/embeddings-benchmark/mteb) 为基础 ，为中文文本嵌入模型设计的 BenckMark。
+        您需要提供以下信息，以帮助 uniem 团队将您提供的模型加入到 MTEB-zh 评测标准中。
+  - type: input
+    id: name
+    attributes:
+      label: model name
+      description: 模型的名称，请使用英文字母，数字，- 或者 _
+      placeholder: "Example: m3e-base" 
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: model type
+      desciption: |
+        MTEB-zh 支持多种类型的文本嵌入模型，比如 sentence_transformer, text2vec, luotuo 等。
+        您可以在[这里](https://github.com/wangyuxinwhy/uniem/blob/main/mteb-zh/mteb_zh/models.py)找到全部支持的类型。
+        如果 MTEB-zh 还未支持您的模型，请选择 others ，并在 model description 提供使用方式。
+      options:
+        - sentence_transformer
+        - text2vec
+        - luotuo
+        - erlangshen
+        - others
+      validations:
+        required: true
+  - type: input
+    id: id
+    attributes:
+      label: huggingface model id
+      description: 如果您的模型支持通过 [HuggingFace Models](https://huggingface.co/models) 进行加载，请提供 model id
+      placeholder: "Example: moka-ai/m3e-base"
+  - type: textarea
+    id: description
+    attributes:
+      label: model description

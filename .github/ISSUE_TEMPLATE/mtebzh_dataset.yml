@@ -1,0 +1,45 @@
+name: 💯 MTEB-zh Dataset
+description: 提交您希望 MTEB-zh 支持的数据集
+labels: dataset
+assignees:
+  - wangyuxinwhy
+body:
+  - type: markdown
+    attributes:
+      value: |
+        MTEB-zh 是以 [MTEB](https://github.com/embeddings-benchmark/mteb) 为基础 ，为中文文本嵌入模型设计的 BenckMark。
+        您需要提供以下信息，以帮助 uniem 团队将您提供的数据集加入到 MTEB-zh 评测标准中。
+  - type: input
+    id: name
+    attributes:
+      label: dataset name
+      description: 数据集的名称，请使用英文字母，数字，- 或者 _
+      placeholder: "Example: MedQQpairs" 
+    validations:
+      required: true
+  - type: input
+    id: id
+    attributes:
+      label: huggingface dataset id
+      description: MTEB-zh 和 MTEB 一样，需要您将数据集开源并托管在 [HuggingFace Datasets](https://huggingface.co/datasets)
+      placeholder: "Example: vegaviazhang/Med_QQpairs"
+    validations:
+      required: true
+  - type: dropdown
+    id: task_type
+    attributes:
+      label: task type
+      desciption: MTEB-zh 支持多种类型的文本嵌入评测任务，比如文本分类，文本检索，文本聚类等，如果您不确定您的数据集属于何种任务，可以不进行选择。
+      options:
+        - Classification
+        - PairClassification
+        - Reranking
+        - Retrieval
+        - BitextMining
+        - Clustering
+        - STS
+        - Summarization
+  - type: textarea
+    id: description
+    attributes:
+      label: dataset description

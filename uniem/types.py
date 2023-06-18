@@ -2,10 +2,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, TypeAlias
 
+from datasets import DatasetDict
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
-
-from datasets import DatasetDict
 
 Tokenizer: TypeAlias = PreTrainedTokenizer | PreTrainedTokenizerFast
 

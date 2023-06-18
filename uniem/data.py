@@ -2,13 +2,13 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast, Sequence
+from typing import Any, Sequence, cast
 
 import torch
+from datasets import Dataset as HfDataset
 from torch.utils.data import Dataset, RandomSampler
 
-from datasets import Dataset as HfDataset
-from uniem.data_structures import RecordType, PairRecord, ScoredPairRecord, TripletRecord, get_record_type, record_type_cls_map
+from uniem.data_structures import PairRecord, RecordType, ScoredPairRecord, TripletRecord, get_record_type, record_type_cls_map
 from uniem.types import Tokenizer
 
 

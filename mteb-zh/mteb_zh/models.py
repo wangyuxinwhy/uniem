@@ -28,39 +28,42 @@ class ModelType(str, Enum):
     azure = 'azure'
 
 
-def load_model(model_type: ModelType, model_name: str | None = None) -> MTEBModel:
+def load_model(model_type: ModelType, model_id: str | None = None) -> MTEBModel:
     match model_type:
         case ModelType.sentence_transformer:
-            if model_name is None:
+            if model_id is None:
                 raise ValueError('model_name must be specified for sentence_transformer')
-            return SentenceTransformer(model_name)
+            return SentenceTransformer(model_id)
         case ModelType.text2vec:
-            from text2vec import SentenceModel
+            try:
+                from text2vec import SentenceModel  # type: ignore
+            except ImportError:
+                raise ImportError('text2vec is not installed, please install it with "pip install text2vec"')
 
-            if model_name is None:
+            if model_id is None:
                 return SentenceModel()
             else:
-                return SentenceModel(model_name)
+                return SentenceModel(model_id)
         case ModelType.openai:
-            if model_name is None:
+            if model_id is None:
                 return OpenAIModel(model_name='text-embedding-ada-002')
             else:
-                return OpenAIModel(model_name=model_name)
+                return OpenAIModel(model_name=model_id)
         case ModelType.azure:
-            if model_name is None:
+            if model_id is None:
                 return AzureModel(model_name='text-embedding-ada-002')
             else:
-                return AzureModel(model_name=model_name)
+                return AzureModel(model_name=model_id)
         case ModelType.luotuo:
-            if model_name is None:
+            if model_id is None:
                 return LuotuoBertModel(model_name='silk-road/luotuo-bert')
             else:
-                return LuotuoBertModel(model_name=model_name)
+                return LuotuoBertModel(model_name=model_id)
         case ModelType.erlangshen:
-            if model_name is None:
+            if model_id is None:
                 return ErLangShenModel(model_name='IDEA-CCNL/Erlangshen-SimCSE-110M-Chinese')
             else:
-                return ErLangShenModel(model_name=model_name)
+                return ErLangShenModel(model_name=model_id)
         case _:
             raise ValueError(f'Unknown model type: {model_type}')
 

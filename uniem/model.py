@@ -2,10 +2,10 @@ from enum import Enum
 from pathlib import Path
 from typing import ClassVar, Literal, Type, TypeVar, cast
 
-import tqdm
-import torch
 import numpy as np
-from transformers import AutoTokenizer, AutoConfig, AutoModel, PreTrainedModel  # type: ignore
+import torch
+import tqdm
+from transformers import AutoConfig, AutoModel, AutoTokenizer, PreTrainedModel  # type: ignore
 
 from uniem.criteria import (
     CoSentLoss,
