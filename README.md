@@ -1,4 +1,8 @@
 # uniem
+[![Release](https://img.shields.io/pypi/v/uniem)](https://pypi.org/project/uniem/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/uniem)
+[![ci](https://github.com/wangyuxinwhy/uniem/actions/workflows/ci.yml/badge.svg)](https://github.com/wangyuxinwhy/uniem/actions/workflows/ci.yml)
+[![cd](https://github.com/wangyuxinwhy/uniem/actions/workflows/cd.yml/badge.svg)](https://github.com/wangyuxinwhy/uniem/actions/workflows/cd.yml)
 
 uniem 项目的目标是创建中文最好的通用文本嵌入模型。
 
