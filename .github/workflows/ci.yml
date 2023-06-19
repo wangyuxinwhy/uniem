@@ -33,6 +33,7 @@ jobs:
     - name: Install dependencies
       run: |
         poetry config virtualenvs.create false --local
+        python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
         poetry install
     - name: Lint with blue, ruff and pyright
       run: |
