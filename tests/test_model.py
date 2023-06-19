@@ -1,7 +1,5 @@
 import pytest
 import torch
-
-from tests import FIXTURES_DIR
 from uniem.model import (
     AutoEmbedder,
     EmbedderForPairInBatchNegTrain,
@@ -13,6 +11,8 @@ from uniem.model import (
     creat_mask_from_input_ids,
     mean_pooling,
 )
+
+from tests import FIXTURES_DIR
 
 
 def test_creat_mask_from_input_ids():
@@ -71,7 +71,9 @@ def test_mean_pooling():
 @pytest.mark.parametrize('loss_type', ['softmax', 'sigmoid', 'cosent'])
 def test_uniem_triplet_model(loss_type: str):
     model1 = EmbedderForTripletInBatchNegTrain(
-        model_name_or_path=str(FIXTURES_DIR / 'model'), temperature=0.05, loss_type=loss_type
+        model_name_or_path=str(FIXTURES_DIR / 'model'),
+        temperature=0.05,
+        loss_type=loss_type,
     )
     model2 = EmbedderForTripletInBatchNegTrain(
         model_name_or_path=str(FIXTURES_DIR / 'model'),
@@ -79,11 +81,33 @@ def test_uniem_triplet_model(loss_type: str):
         loss_type=loss_type,
     )
     records = {
-        'text_ids': torch.tensor([[101, 2769, 1599, 3614, 4334, 4347, 3425, 102], [101, 2769, 1599, 3614, 6639, 4413, 102, 0]]),
-        'text_pos_ids': torch.tensor([[101, 2769, 1599, 3614, 3580, 2094, 102], [101, 2769, 1599, 3614, 5074, 4413, 102]]),
+        'text_ids': torch.tensor(
+            [
+                [101, 2769, 1599, 3614, 4334, 4347, 3425, 102],
+                [101, 2769, 1599, 3614, 6639, 4413, 102, 0],
+            ]
+        ),
+        'text_pos_ids': torch.tensor(
+            [
+                [101, 2769, 1599, 3614, 3580, 2094, 102],
+                [101, 2769, 1599, 3614, 5074, 4413, 102],
+            ]
+        ),
         'text_neg_ids': torch.tensor(
             [
-                [101, 5741, 3362, 1469, 3580, 2094, 6963, 3221, 3717, 3362, 102],
+                [
+                    101,
+                    5741,
+                    3362,
+                    1469,
+                    3580,
+                    2094,
+                    6963,
+                    3221,
+                    3717,
+                    3362,
+                    102,
+                ],
                 [101, 3449, 6205, 3221, 6639, 4413, 6817, 1220, 1447, 102, 0],
             ]
         ),
@@ -103,8 +127,18 @@ def test_uniem_pair_model(loss_type: str):
         loss_type=loss_type,
     )
     records = {
-        'text_ids': torch.tensor([[101, 2769, 1599, 3614, 4334, 4347, 3425, 102], [101, 2769, 1599, 3614, 6639, 4413, 102, 0]]),
-        'text_pos_ids': torch.tensor([[101, 2769, 1599, 3614, 3580, 2094, 102], [101, 2769, 1599, 3614, 5074, 4413, 102]]),
+        'text_ids': torch.tensor(
+            [
+                [101, 2769, 1599, 3614, 4334, 4347, 3425, 102],
+                [101, 2769, 1599, 3614, 6639, 4413, 102, 0],
+            ]
+        ),
+        'text_pos_ids': torch.tensor(
+            [
+                [101, 2769, 1599, 3614, 3580, 2094, 102],
+                [101, 2769, 1599, 3614, 5074, 4413, 102],
+            ]
+        ),
     }
 
     loss = model(**records)['loss']
@@ -139,7 +173,10 @@ def test_auto_embedder(transformers_model, tmpdir, embedder_cls):
     new_embedder = AutoEmbedder.from_pretrained(tmpdir)
 
     assert isinstance(new_embedder, embedder_cls)
-    assert torch.allclose(embedder(torch.tensor([[1, 2, 3]])), new_embedder(torch.tensor([[1, 2, 3]])))
+    assert torch.allclose(
+        embedder(torch.tensor([[1, 2, 3]])),
+        new_embedder(torch.tensor([[1, 2, 3]])),
+    )
 
 
 def test_uni_embedder():

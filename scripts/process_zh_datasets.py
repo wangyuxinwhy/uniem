@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import cast
 
 import typer
-
 from datasets import Dataset, DatasetDict, concatenate_datasets, load_dataset
 from uniem.types import DatasetDescription, UniemDataset
 
@@ -152,11 +151,13 @@ amazon_reviews_description = DatasetDescription(
 def load_xlsum():
     dataset = load_dataset('csebuetnlp/xlsum', 'chinese_simplified')
     dataset1 = dataset.select_columns(['title', 'summary', 'id', 'url'])
+    dataset1 = cast(DatasetDict, dataset1)
     dataset2 = dataset.select_columns(['title', 'text', 'id', 'url'])
+    dataset2 = cast(DatasetDict, dataset2)
     dataset1 = dataset1.rename_columns({'title': 'text', 'summary': 'text_pos'})
     dataset2 = dataset2.rename_columns({'title': 'text', 'text': 'text_pos'})
-    all_datasets = list(dataset1.values()) + list(dataset2.values())   # type: ignore
-    dataset = concatenate_datasets(all_datasets)
+    datasets = list(dataset1.values()) + list(dataset2.values())
+    dataset = concatenate_datasets(datasets)
     return dataset
 
 

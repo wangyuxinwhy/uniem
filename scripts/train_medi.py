@@ -7,7 +7,6 @@ from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration, set_seed
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup  # type: ignore
-
 from uniem.data import MediDataset, PairCollator, TripletCollator
 from uniem.model import (
     EmbedderForPairInBatchNegTrain,
@@ -60,7 +59,9 @@ def main(
 
     output_dir = output_dir or Path('experiments') / 'medi'
     project_config = ProjectConfiguration(
-        project_dir=str(output_dir), automatic_checkpoint_naming=True, total_limit=num_max_checkpoints
+        project_dir=str(output_dir),
+        automatic_checkpoint_naming=True,
+        total_limit=num_max_checkpoints,
     )
     accelerator = Accelerator(
         mixed_precision=mixed_precision.value,
@@ -89,7 +90,12 @@ def main(
     else:
         data_collator = PairCollator(tokenizer=tokenizer, max_length=max_length)
     train_dataloader = DataLoader(
-        train_dataset, batch_size=None, collate_fn=data_collator, shuffle=True, num_workers=num_workers, pin_memory=True
+        train_dataset,
+        batch_size=None,
+        collate_fn=data_collator,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True,
     )
     train_dataloader = accelerator.prepare(train_dataloader)
 

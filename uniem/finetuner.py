@@ -12,7 +12,13 @@ from datasets import DatasetDict as HFDatasetDict
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup  # type: ignore
 
-from uniem.data import FinetuneDataset, PairCollator, PrefixFinetuneDataset, ScoredPairCollator, TripletCollator
+from uniem.data import (
+    FinetuneDataset,
+    PairCollator,
+    PrefixFinetuneDataset,
+    ScoredPairCollator,
+    TripletCollator,
+)
 from uniem.data_structures import RecordType, get_record_type
 from uniem.model import (
     EmbedderForPairInBatchNegTrain,
@@ -39,19 +45,31 @@ class FineTuner:
         self.model_name_or_path = model_name_or_path
         self.raw_dataset = dataset
         if isinstance(self.raw_dataset, dict):
-            self.raw_train_dataset, self.raw_validation_dataset = split_dataset_dict(self.raw_dataset)
+            (
+                self.raw_train_dataset,
+                self.raw_validation_dataset,
+            ) = split_dataset_dict(self.raw_dataset)
         else:
-            self.raw_train_dataset, self.raw_validation_dataset = self.raw_dataset, None
+            self.raw_train_dataset, self.raw_validation_dataset = (
+                self.raw_dataset,
+                None,
+            )
         self.record_type = get_record_type(self.raw_train_dataset[0])  # type: ignore
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path)
 
-    def create_finetune_datasets(self) -> tuple[FinetuneDataset, FinetuneDataset | None]:
+    def create_finetune_datasets(
+        self,
+    ) -> tuple[FinetuneDataset, FinetuneDataset | None]:
         train_dataset = FinetuneDataset(self.raw_train_dataset)
         validation_dataset = FinetuneDataset(self.raw_validation_dataset) if self.raw_validation_dataset is not None else None
         return train_dataset, validation_dataset
 
     def create_dataloaders(
-        self, batch_size: int = 64, num_workers: int = 0, drop_last: bool = False, max_length: int | None = None
+        self,
+        batch_size: int = 64,
+        num_workers: int = 0,
+        drop_last: bool = False,
+        max_length: int | None = None,
     ) -> tuple[DataLoader, DataLoader | None]:
         train_dataset, validation_dataset = self.create_finetune_datasets()
 
@@ -88,7 +106,9 @@ class FineTuner:
         return train_dataloader, validation_dataloader
 
     def create_finetune_model(
-        self, temperature: float | None = None, embedding_strategy: PoolingStrategy = PoolingStrategy.last_mean
+        self,
+        temperature: float | None = None,
+        embedding_strategy: PoolingStrategy = PoolingStrategy.last_mean,
     ) -> EmbedderForTrain:
         match self.record_type:
             case RecordType.PAIR:
@@ -139,7 +159,9 @@ class FineTuner:
 
         output_dir = Path(output_dir) if output_dir is not None else Path('finetuned-model')
         project_config = ProjectConfiguration(
-            project_dir=str(output_dir), automatic_checkpoint_naming=True, total_limit=num_max_checkpoints
+            project_dir=str(output_dir),
+            automatic_checkpoint_naming=True,
+            total_limit=num_max_checkpoints,
         )
         accelerator = Accelerator(
             mixed_precision=mixed_precision.value,
@@ -154,7 +176,10 @@ class FineTuner:
         accelerator.print(f'Output dir: {output_dir}')
 
         train_dataloader, validation_dataloader = self.create_dataloaders(
-            batch_size=batch_size, drop_last=drop_last, max_length=max_length, num_workers=num_workers
+            batch_size=batch_size,
+            drop_last=drop_last,
+            max_length=max_length,
+            num_workers=num_workers,
         )
         train_dataloader = accelerator.prepare(train_dataloader)
         validation_dataloader = accelerator.prepare(validation_dataloader) if validation_dataloader is not None else None
@@ -223,7 +248,9 @@ class PrefixFineTuner(FineTuner):
         self.additional_special_token_ids = self.tokenizer.convert_tokens_to_ids(additional_special_tokens)
         self.only_train_additional_special_tokens = only_train_additional_special_tokens
 
-    def create_finetune_datasets(self) -> tuple[FinetuneDataset, FinetuneDataset | None]:
+    def create_finetune_datasets(
+        self,
+    ) -> tuple[FinetuneDataset, FinetuneDataset | None]:
         train_dataset = PrefixFinetuneDataset(self.raw_train_dataset, prefix=self.prefix)
         validation_dataset = (
             PrefixFinetuneDataset(self.raw_validation_dataset, prefix=self.prefix)
@@ -233,11 +260,16 @@ class PrefixFineTuner(FineTuner):
         return train_dataset, validation_dataset
 
     def create_finetune_model(
-        self, temperature: float | None = None, embedding_strategy: PoolingStrategy = PoolingStrategy.last_mean
+        self,
+        temperature: float | None = None,
+        embedding_strategy: PoolingStrategy = PoolingStrategy.last_mean,
     ) -> EmbedderForTrain:
         model = super().create_finetune_model(temperature, embedding_strategy)
         model.embedder.encoder.resize_token_embeddings(len(self.tokenizer))
-        hook = functools.partial(partial_freeze_gradients, train_indices=torch.tensor(self.additional_special_token_ids))
+        hook = functools.partial(
+            partial_freeze_gradients,
+            train_indices=torch.tensor(self.additional_special_token_ids),
+        )
         if self.only_train_additional_special_tokens:
             for param in model.parameters():
                 param.requires_grad = False
@@ -271,7 +303,9 @@ class PrefixFineTuner(FineTuner):
 
         output_dir = Path(output_dir) if output_dir is not None else Path('finetuned-model')
         project_config = ProjectConfiguration(
-            project_dir=str(output_dir), automatic_checkpoint_naming=True, total_limit=num_max_checkpoints
+            project_dir=str(output_dir),
+            automatic_checkpoint_naming=True,
+            total_limit=num_max_checkpoints,
         )
         accelerator = Accelerator(
             mixed_precision=mixed_precision.value,
@@ -286,7 +320,10 @@ class PrefixFineTuner(FineTuner):
         accelerator.print(f'Output dir: {output_dir}')
 
         train_dataloader, validation_dataloader = self.create_dataloaders(
-            batch_size=batch_size, drop_last=drop_last, max_length=max_length, num_workers=num_workers
+            batch_size=batch_size,
+            drop_last=drop_last,
+            max_length=max_length,
+            num_workers=num_workers,
         )
         train_dataloader = accelerator.prepare(train_dataloader)
         validation_dataloader = accelerator.prepare(validation_dataloader) if validation_dataloader is not None else None

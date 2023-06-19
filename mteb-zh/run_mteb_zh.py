@@ -3,21 +3,19 @@ from typing import Annotated
 
 import typer
 from mteb import MTEB, AbsTask
-
-from mteb_zh.models import load_model, ModelType
+from mteb_zh.models import ModelType, load_model
 from mteb_zh.tasks import (
-    TaskType,
     GubaEastmony,
     IFlyTek,
     JDIphone,
+    MedQQPairs,
     StockComSentiment,
+    T2RReranking,
     T2RRetrieval,
+    TaskType,
     TNews,
     TYQSentiment,
-    T2RReranking,
-    MedQQPairs,
 )
-
 
 default_tasks: list[AbsTask] = [
     TYQSentiment(),

@@ -234,7 +234,10 @@ class EmbedderForTripletInBatchNegTrain(EmbedderForTrain):
                 self.criterion = TripletInBatchNegCoSentLoss(temperature, add_swap_loss)
 
     def forward(
-        self, text_ids: torch.Tensor, text_pos_ids: torch.Tensor, text_neg_ids: torch.Tensor
+        self,
+        text_ids: torch.Tensor,
+        text_pos_ids: torch.Tensor,
+        text_neg_ids: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
         text_embeddings = self.embedder(text_ids)
         text_pos_embeddings = self.embedder(text_pos_ids)
@@ -256,7 +259,12 @@ class EmbedderForScoredPairTrain(EmbedderForTrain):
         temperature = temperature or 0.05
         self.criterion = CoSentLoss(temperature)
 
-    def forward(self, text_ids: torch.Tensor, text_pair_ids: torch.Tensor, labels: torch.Tensor) -> dict[str, torch.Tensor]:
+    def forward(
+        self,
+        text_ids: torch.Tensor,
+        text_pair_ids: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> dict[str, torch.Tensor]:
         text_embeddings = self.embedder(text_ids)
         text_pos_embeddings = self.embedder(text_pair_ids)
         predict_labels = torch.cosine_similarity(text_embeddings, text_pos_embeddings, dim=-1)
@@ -289,7 +297,12 @@ class UniEmbedder:
     def __call__(self, sentences: list[str], batch_size: int = 32):
         return self.encode(sentences, batch_size)
 
-    def encode(self, sentences: list[str], batch_size: int = 32, progress_bar: Literal['auto'] | bool = 'auto'):
+    def encode(
+        self,
+        sentences: list[str],
+        batch_size: int = 32,
+        progress_bar: Literal['auto'] | bool = 'auto',
+    ):
         embeddings: list[np.ndarray] = []
         if progress_bar == 'auto':
             progress_bar = len(sentences) > self.PROGRESS_BAR_THRESHOLD

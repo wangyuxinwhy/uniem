@@ -5,13 +5,17 @@ from typing import Annotated, Optional, cast
 import typer
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration, set_seed
-from torch.utils.data import DataLoader
-from transformers import AutoTokenizer, get_cosine_schedule_with_warmup  # type: ignore
-
 from datasets import Dataset as HfDataset
 from datasets import concatenate_datasets, load_from_disk
+from torch.utils.data import DataLoader
+from transformers import AutoTokenizer, get_cosine_schedule_with_warmup  # type: ignore
 from uniem.data import M3EDataset, M3EHfDatsetWithInfo, PairCollator
-from uniem.model import EmbedderForPairInBatchNegTrain, EmbedderForTrain, InBatchNegLossType, PoolingStrategy
+from uniem.model import (
+    EmbedderForPairInBatchNegTrain,
+    EmbedderForTrain,
+    InBatchNegLossType,
+    PoolingStrategy,
+)
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
 from uniem.utils import create_adamw_optimizer
@@ -72,7 +76,9 @@ def main(
 
     output_dir = output_dir or Path('experiments') / 'm3e'
     project_config = ProjectConfiguration(
-        project_dir=str(output_dir), automatic_checkpoint_naming=True, total_limit=num_max_checkpoints
+        project_dir=str(output_dir),
+        automatic_checkpoint_naming=True,
+        total_limit=num_max_checkpoints,
     )
     accelerator = Accelerator(
         mixed_precision=mixed_precision.value,
@@ -97,7 +103,12 @@ def main(
     )
     data_collator = PairCollator(tokenizer=tokenizer, max_length=max_length)
     train_dataloader = DataLoader(
-        train_dataset, batch_size=None, collate_fn=data_collator, shuffle=True, num_workers=num_workers, pin_memory=True
+        train_dataset,
+        batch_size=None,
+        collate_fn=data_collator,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True,
     )
     train_dataloader = accelerator.prepare(train_dataloader)
 

@@ -8,7 +8,14 @@ import torch
 from datasets import Dataset as HfDataset
 from torch.utils.data import Dataset, RandomSampler
 
-from uniem.data_structures import PairRecord, RecordType, ScoredPairRecord, TripletRecord, get_record_type, record_type_cls_map
+from uniem.data_structures import (
+    PairRecord,
+    RecordType,
+    ScoredPairRecord,
+    TripletRecord,
+    get_record_type,
+    record_type_cls_map,
+)
 from uniem.types import Tokenizer
 
 
@@ -124,7 +131,11 @@ class ScoredPairCollator:
 
 
 class FinetuneDataset(Dataset):
-    def __init__(self, dataset: HfDataset | Sequence[dict], record_type: RecordType | str | None = None) -> None:
+    def __init__(
+        self,
+        dataset: HfDataset | Sequence[dict],
+        record_type: RecordType | str | None = None,
+    ) -> None:
         self.dataset = dataset
         if record_type:
             self.record_type = RecordType(record_type)
@@ -141,7 +152,12 @@ class FinetuneDataset(Dataset):
 
 
 class PrefixFinetuneDataset(FinetuneDataset):
-    def __init__(self, dataset: HfDataset | Sequence[dict], prefix: str, record_type: RecordType | str | None = None) -> None:
+    def __init__(
+        self,
+        dataset: HfDataset | Sequence[dict],
+        prefix: str,
+        record_type: RecordType | str | None = None,
+    ) -> None:
         super().__init__(dataset=dataset, record_type=record_type)
         self.prefix = prefix
 

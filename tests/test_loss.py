@@ -2,7 +2,6 @@ from typing import cast
 
 import pytest
 import torch
-
 from uniem.criteria import (
     PairInBatchNegSigmoidContrastLoss,
     PairInBatchNegSoftmaxContrastLoss,
@@ -11,7 +10,11 @@ from uniem.criteria import (
 )
 
 
-def naive_pair_contrast_softmax_loss(text_embeddings: torch.Tensor, text_pos_embeddings: torch.Tensor, temperature: float):
+def naive_pair_contrast_softmax_loss(
+    text_embeddings: torch.Tensor,
+    text_pos_embeddings: torch.Tensor,
+    temperature: float,
+):
     batch_size = text_embeddings.size(0)
     all_scores = None
 
@@ -37,7 +40,11 @@ def naive_pair_contrast_softmax_loss(text_embeddings: torch.Tensor, text_pos_emb
     return loss
 
 
-def naive_pair_contrast_sigmoid_loss(text_embeddings: torch.Tensor, text_pos_embeddings: torch.Tensor, temperature: float):
+def naive_pair_contrast_sigmoid_loss(
+    text_embeddings: torch.Tensor,
+    text_pos_embeddings: torch.Tensor,
+    temperature: float,
+):
     batch_size = text_embeddings.size(0)
     all_scores = []
 
@@ -178,7 +185,15 @@ def test_pair_contrast_loss(temperature: float):
 
 
 @pytest.mark.parametrize(
-    'temperature, add_swap_loss', [(0.05, False), (0.1, False), (1, False), (0.05, True), (0.1, True), (1, True)]
+    'temperature, add_swap_loss',
+    [
+        (0.05, False),
+        (0.1, False),
+        (1, False),
+        (0.05, True),
+        (0.1, True),
+        (1, True),
+    ],
 )
 def test_triplet_contrast_loss(temperature: float, add_swap_loss: bool):
     text_embeddings = torch.randn(10, 768)
@@ -189,7 +204,11 @@ def test_triplet_contrast_loss(temperature: float, add_swap_loss: bool):
         text_embeddings, text_pos_embeddings, text_neg_embeddings
     )
     naive_loss = naive_triplet_contrast_softmax_loss(
-        text_embeddings, text_pos_embeddings, text_neg_embeddings, temperature, add_swap_loss
+        text_embeddings,
+        text_pos_embeddings,
+        text_neg_embeddings,
+        temperature,
+        add_swap_loss,
     )
     assert torch.allclose(loss, naive_loss)
 
@@ -197,6 +216,10 @@ def test_triplet_contrast_loss(temperature: float, add_swap_loss: bool):
         text_embeddings, text_pos_embeddings, text_neg_embeddings
     )
     naive_loss = naive_triplet_contrast_sigmoid_loss(
-        text_embeddings, text_pos_embeddings, text_neg_embeddings, temperature, add_swap_loss
+        text_embeddings,
+        text_pos_embeddings,
+        text_neg_embeddings,
+        temperature,
+        add_swap_loss,
     )
     assert torch.allclose(loss, naive_loss)

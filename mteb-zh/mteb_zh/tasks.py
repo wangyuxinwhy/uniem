@@ -1,15 +1,18 @@
 import csv
-from enum import Enum
 import math
 import sys
 from collections import defaultdict
+from enum import Enum
 from typing import Iterable, TypeVar, cast
 
-from mteb.abstasks import AbsTaskClassification, AbsTaskReranking, AbsTaskRetrieval, AbsTaskPairClassification
-from tqdm import tqdm
-
 from datasets import Dataset, DatasetDict, load_dataset
-
+from mteb.abstasks import (
+    AbsTaskClassification,
+    AbsTaskPairClassification,
+    AbsTaskReranking,
+    AbsTaskRetrieval,
+)
+from tqdm import tqdm
 
 T = TypeVar('T')
 csv.field_size_limit(sys.maxsize)

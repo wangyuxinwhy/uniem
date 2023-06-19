@@ -1,8 +1,8 @@
 import pytest
-
-from tests import FIXTURES_DIR
 from uniem.data import MediDataset, TripletCollator
 from uniem.data_structures import TripletRecord
+
+from tests import FIXTURES_DIR
 
 
 def test_triplet_collator(tokenizer):

@@ -13,7 +13,11 @@ class PairInBatchNegCoSentLoss(ContrastLoss):
         text_embeddings: torch.Tensor,
         text_pos_embeddings: torch.Tensor,
     ) -> torch.Tensor:
-        sim_matrix = torch.cosine_similarity(text_embeddings.unsqueeze(1), text_pos_embeddings.unsqueeze(0), dim=-1)
+        sim_matrix = torch.cosine_similarity(
+            text_embeddings.unsqueeze(1),
+            text_pos_embeddings.unsqueeze(0),
+            dim=-1,
+        )
         sim_matrix = sim_matrix / self.temperature
         sim_matrix_diag = sim_matrix.diag()
         sim_matrix_diff = sim_matrix - sim_matrix_diag.unsqueeze(1)
@@ -37,7 +41,11 @@ class TripletInBatchNegCoSentLoss(ContrastLoss):
         text_neg_embeddings: torch.Tensor,
     ) -> torch.Tensor:
         sim_pos_vector = torch.cosine_similarity(text_embeddings, text_pos_embeddings, dim=-1)
-        sim_neg_matrix = torch.cosine_similarity(text_embeddings.unsqueeze(1), text_neg_embeddings.unsqueeze(0), dim=-1)
+        sim_neg_matrix = torch.cosine_similarity(
+            text_embeddings.unsqueeze(1),
+            text_neg_embeddings.unsqueeze(0),
+            dim=-1,
+        )
         sim_matrix = torch.cat([sim_pos_vector.unsqueeze(1), sim_neg_matrix], dim=1)
         sim_matrix = sim_matrix / self.temperature
         sim_matrix_diff = sim_matrix - sim_matrix[:, 0].unsqueeze(1)
@@ -58,7 +66,11 @@ class PairInBatchNegSoftmaxContrastLoss(ContrastLoss):
         text_embeddings: torch.Tensor,
         text_pos_embeddings: torch.Tensor,
     ) -> torch.Tensor:
-        sim_matrix = torch.cosine_similarity(text_embeddings.unsqueeze(1), text_pos_embeddings.unsqueeze(0), dim=-1)
+        sim_matrix = torch.cosine_similarity(
+            text_embeddings.unsqueeze(1),
+            text_pos_embeddings.unsqueeze(0),
+            dim=-1,
+        )
         sim_matrix = sim_matrix / self.temperature
         labels = torch.arange(sim_matrix.size(0), device=text_embeddings.device, dtype=torch.long)
         loss = self._cross_entropy_loss(sim_matrix, labels)
@@ -81,7 +93,11 @@ class TripletInBatchNegSoftmaxContrastLoss(ContrastLoss):
         text_neg_embeddings: torch.Tensor,
     ) -> torch.Tensor:
         sim_pos_vector = torch.cosine_similarity(text_embeddings, text_pos_embeddings, dim=-1)
-        sim_neg_matrix = torch.cosine_similarity(text_embeddings.unsqueeze(1), text_neg_embeddings.unsqueeze(0), dim=-1)
+        sim_neg_matrix = torch.cosine_similarity(
+            text_embeddings.unsqueeze(1),
+            text_neg_embeddings.unsqueeze(0),
+            dim=-1,
+        )
         sim_matrix = torch.cat([sim_pos_vector.unsqueeze(1), sim_neg_matrix], dim=1)
         sim_matrix = sim_matrix / self.temperature
         labels = torch.zeros(sim_matrix.size(0), dtype=torch.long, device=sim_matrix.device)
@@ -102,7 +118,11 @@ class PairInBatchNegSigmoidContrastLoss(ContrastLoss):
         text_pos_embeddings: torch.Tensor,
     ) -> torch.Tensor:
         batch_size = text_embeddings.size(0)
-        sim_matrix = torch.cosine_similarity(text_embeddings.unsqueeze(1), text_pos_embeddings.unsqueeze(0), dim=-1)
+        sim_matrix = torch.cosine_similarity(
+            text_embeddings.unsqueeze(1),
+            text_pos_embeddings.unsqueeze(0),
+            dim=-1,
+        )
         sim_matrix = sim_matrix / self.temperature
         sim_matrix_diag = sim_matrix.diag()
 
@@ -131,7 +151,11 @@ class TripletInBatchNegSigmoidContrastLoss(ContrastLoss):
     ) -> torch.Tensor:
         sim_pos_vector = torch.cosine_similarity(text_embeddings, text_pos_embeddings, dim=-1)
         sim_pos_vector = sim_pos_vector / self.temperature
-        sim_neg_matrix = torch.cosine_similarity(text_embeddings.unsqueeze(1), text_neg_embeddings.unsqueeze(0), dim=-1)
+        sim_neg_matrix = torch.cosine_similarity(
+            text_embeddings.unsqueeze(1),
+            text_neg_embeddings.unsqueeze(0),
+            dim=-1,
+        )
         sim_neg_matrix = sim_neg_matrix / self.temperature
         sim_diff_matrix = sim_pos_vector.unsqueeze(1) - sim_neg_matrix
         loss = -torch.log(torch.sigmoid(sim_diff_matrix)).mean()

@@ -1,11 +1,10 @@
 import json
 from collections import defaultdict
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
 import pandas as pd
 import typer
-
 from mteb_zh.tasks import TaskType
 
 

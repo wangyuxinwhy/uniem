@@ -5,7 +5,6 @@ import os
 
 import typer
 from mteb import MTEB
-
 from uniem import UniEmbedder
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
