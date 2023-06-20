@@ -1,0 +1,28 @@
+name: 🐛 Bug Report
+description: 提交报告以帮助我们重现和修复 bug
+labels: bug
+assignees:
+  - wangyuxinwhy
+body:
+  - type: markdown
+    attributes:
+      value: >
+        在提交您遇到的 bug 之前, 请在 [这里](https://github.com/wangyuxinwhy/uniem/issues?q=) 看看有没有人有类似的问题 🌝
+  - type: textarea
+    id: description
+    attributes:
+      label: 🐛 bug 说明
+    validations:
+      required: true
+  - type: dropdown
+    id: python-version
+    attributes:
+      label: Python Version
+      options:
+        - "3.10"
+        - 3.11
+        - other
+  - type: markdown
+    attributes:
+      value: >
+        感谢您的支持 🎉!

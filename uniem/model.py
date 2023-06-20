@@ -1,29 +1,39 @@
 from enum import Enum
-from itertools import islice
 from pathlib import Path
-from typing import ClassVar, Generator, Iterable, Literal, Type, TypeVar, cast
+from typing import ClassVar, Literal, Type, TypeVar, cast
 
-import torch
 import numpy as np
+import torch
 import tqdm
-from transformers import AutoConfig, AutoModel, AutoTokenizer, PreTrainedModel
+from transformers import AutoConfig, AutoModel, AutoTokenizer, PreTrainedModel  # type: ignore
 
 from uniem.criteria import (
-    PairSigmoidContrastLoss,
-    PairSoftmaxContrastLoss,
-    TripletSigmoidContrastLoss,
-    TripletSoftmaxContrastLoss,
+    CoSentLoss,
+    PairInBatchNegCoSentLoss,
+    PairInBatchNegSigmoidContrastLoss,
+    PairInBatchNegSoftmaxContrastLoss,
+    TripletInBatchNegCoSentLoss,
+    TripletInBatchNegSigmoidContrastLoss,
+    TripletInBatchNegSoftmaxContrastLoss,
 )
 from uniem.types import Tokenizer
+from uniem.utils import generate_batch
 
 T = TypeVar('T')
 
 
-class EmbeddingStrategy(str, Enum):
+class PoolingStrategy(str, Enum):
     cls = 'cls'
     last_mean = 'last_mean'
     first_last_mean = 'first_last_mean'
     embedding_last_mean = 'embedding_last_mean'
+    last_weighted = 'last_weighted'
+
+
+class InBatchNegLossType(str, Enum):
+    sigmoid = 'sigmoid'
+    softmax = 'softmax'
+    cosent = 'cosent'
 
 
 def creat_mask_from_input_ids(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
@@ -38,26 +48,26 @@ def mean_pooling(hidden_state: torch.Tensor, mask: torch.Tensor | None = None) -
 
 
 def load_hf_pretrained_model(model_name_or_path: str) -> PreTrainedModel:
-        config = AutoConfig.from_pretrained(model_name_or_path)
-        if config.model_type == 't5':
-            from transformers import T5EncoderModel
+    config = AutoConfig.from_pretrained(model_name_or_path)
+    if config.model_type == 't5':
+        from transformers import T5EncoderModel  # type: ignore
 
-            pretrained_model = T5EncoderModel.from_pretrained(model_name_or_path)
-        else:
-            pretrained_model = AutoModel.from_pretrained(model_name_or_path)
-        return pretrained_model
+        pretrained_model = T5EncoderModel.from_pretrained(model_name_or_path)
+    else:
+        pretrained_model = AutoModel.from_pretrained(model_name_or_path)
+    return pretrained_model  # type: ignore
 
 
-StrategyEmbedderClsMap: dict[EmbeddingStrategy, Type['Embedder']] = {}
+StrategyEmbedderClsMap: dict[PoolingStrategy, Type['Embedder']] = {}
 
 
 class Embedder(torch.nn.Module):
-    embedding_strategy: ClassVar[EmbeddingStrategy]
+    pooling_strategy: ClassVar[PoolingStrategy]
 
     def __init__(self, encoder: PreTrainedModel, pad_token_id: int | None = None):
         super().__init__()
         self.encoder = encoder
-        self.encoder.config.uniem_embedding_strategy = str(self.embedding_strategy.value)
+        self.encoder.config.uniem_pooling_strategy = str(self.pooling_strategy.value)
 
         if pad_token_id is None:
             if encoder.config.pad_token_id is not None:
@@ -68,7 +78,7 @@ class Embedder(torch.nn.Module):
             self.pad_token_id = pad_token_id
 
     def __init_subclass__(cls) -> None:
-        StrategyEmbedderClsMap[cls.embedding_strategy] = cls
+        StrategyEmbedderClsMap[cls.pooling_strategy] = cls
 
     def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         raise NotImplementedError
@@ -87,7 +97,7 @@ class Embedder(torch.nn.Module):
 
 
 class LastMeanEmbedder(Embedder):
-    embedding_strategy: ClassVar[EmbeddingStrategy] = EmbeddingStrategy.last_mean
+    pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.last_mean
 
     def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         if mask is None:
@@ -98,17 +108,15 @@ class LastMeanEmbedder(Embedder):
 
 
 class ClsEmbedder(Embedder):
-    embedding_strategy: ClassVar[EmbeddingStrategy] = EmbeddingStrategy.cls
+    pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.cls
 
     def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
-        if mask is None:
-            mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
         embeddings = self.encoder(input_ids).last_hidden_state[:, 0]
         return embeddings
 
 
 class FirstLastEmbedder(Embedder):
-    embedding_strategy: ClassVar[EmbeddingStrategy] = EmbeddingStrategy.first_last_mean
+    pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.first_last_mean
 
     def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         if mask is None:
@@ -121,7 +129,7 @@ class FirstLastEmbedder(Embedder):
 
 
 class EmbeddingLastEmbedder(Embedder):
-    embedding_strategy: ClassVar[EmbeddingStrategy] = EmbeddingStrategy.embedding_last_mean
+    pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.embedding_last_mean
 
     def __init__(self, encoder: PreTrainedModel, pad_token_id: int | None = None):
         super().__init__(encoder, pad_token_id)
@@ -136,47 +144,65 @@ class EmbeddingLastEmbedder(Embedder):
         return (mean_last_embeddings + mean_static_embeddings) / 2
 
 
+class LastWeightedEmbedder(Embedder):
+    pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.last_weighted
+
+    def __init__(self, encoder: PreTrainedModel, pad_token_id: int | None = None):
+        super().__init__(encoder, pad_token_id)
+        self.embedding_layer = self.encoder.get_input_embeddings()
+
+    def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
+        if mask is None:
+            mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
+        weights = (torch.arange(input_ids.shape[1], device=input_ids.device) + 1).float()
+        embeddings = self.encoder(input_ids).last_hidden_state
+        embeddings = embeddings * mask.unsqueeze(-1).float() * weights.unsqueeze(0).unsqueeze(-1)
+        embeddings = torch.sum(embeddings, dim=1) / torch.sum(weights * mask, dim=-1, keepdim=True)
+        return embeddings
+
+
 class AutoEmbedder:
     @classmethod
     def from_pretrained(cls, model_name_or_path: str | Path):
-        encoder = load_hf_pretrained_model(model_name_or_path)
-        embedder_cls = StrategyEmbedderClsMap[EmbeddingStrategy(encoder.config.uniem_embedding_strategy)]
+        encoder = load_hf_pretrained_model(str(model_name_or_path))
+        if hasattr(encoder.config, 'uniem_pooling_strategy'):
+            strategy_string = encoder.config.uniem_pooling_strategy
+        elif hasattr(encoder.config, 'uniem_embedding_strategy'):
+            strategy_string = encoder.config.uniem_embedding_strategy
+        else:
+            raise ValueError('Can not find uniem pooling strategy in config, Model is not trained by UniEmbedder.')
+        embedder_cls = StrategyEmbedderClsMap[PoolingStrategy(strategy_string)]
         return embedder_cls(encoder)
 
 
 class EmbedderForTrain(torch.nn.Module):
-    def __init__(self, embedder: Embedder, chunk_size: int = 8):
+    embedder: Embedder
+
+    def __init__(self, embedder: Embedder):
         super().__init__()
         self.embedder = embedder
-        self.chunk_size = chunk_size
-
-    def chunk_embedder_forward(self, input_ids: torch.Tensor) -> torch.Tensor:
-        num_chunks = (input_ids.size(0) // self.chunk_size) + 1
-        if num_chunks <= 1:
-            return self.embedder(input_ids)
-
-        chunks = torch.chunk(input_ids, num_chunks, dim=0)
-        embeddings = [self.embedder(chunk) for chunk in chunks]
-        embeddings = torch.cat(embeddings, dim=0)
-        return embeddings
 
 
-class EmbedderForPairTrain(EmbedderForTrain):
+class EmbedderForPairInBatchNegTrain(EmbedderForTrain):
     def __init__(
         self,
         model_name_or_path: str,
-        temperature: float = 0.05,
-        use_sigmoid: bool = False,
-        embedding_strategy: EmbeddingStrategy | str = EmbeddingStrategy.last_mean,
-        chunk_size: int = 8,
+        temperature: float | None = None,
+        loss_type: InBatchNegLossType | str = InBatchNegLossType.softmax,
+        embedding_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
     ):
         pretrained_model = load_hf_pretrained_model(model_name_or_path)
-        embedder = StrategyEmbedderClsMap[EmbeddingStrategy(embedding_strategy)](pretrained_model)
-        super().__init__(embedder, chunk_size)
-        if use_sigmoid:
-            self.criterion = PairSigmoidContrastLoss(temperature)
-        else:
-            self.criterion = PairSoftmaxContrastLoss(temperature)
+        embedder = StrategyEmbedderClsMap[PoolingStrategy(embedding_strategy)](pretrained_model)
+        super().__init__(embedder)
+        temperature = temperature or 0.05
+        self.loss_type = InBatchNegLossType(loss_type)
+        match self.loss_type:
+            case InBatchNegLossType.sigmoid:
+                self.criterion = PairInBatchNegSigmoidContrastLoss(temperature)
+            case InBatchNegLossType.softmax:
+                self.criterion = PairInBatchNegSoftmaxContrastLoss(temperature)
+            case InBatchNegLossType.cosent:
+                self.criterion = PairInBatchNegCoSentLoss(temperature)
 
     def forward(self, text_ids: torch.Tensor, text_pos_ids: torch.Tensor) -> dict[str, torch.Tensor]:
         text_embeddings = self.embedder(text_ids)
@@ -185,26 +211,33 @@ class EmbedderForPairTrain(EmbedderForTrain):
         return {'loss': loss}
 
 
-class EmbedderForTripletTrain(EmbedderForTrain):
+class EmbedderForTripletInBatchNegTrain(EmbedderForTrain):
     def __init__(
         self,
         model_name_or_path: str,
-        temperature: float = 0.05,
-        use_sigmoid: bool = False,
-        embedding_strategy: EmbeddingStrategy | str = EmbeddingStrategy.last_mean,
-        chunk_size: int = 8,
+        temperature: float | None = None,
+        loss_type: InBatchNegLossType | str = InBatchNegLossType.softmax,
+        embedding_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
+        add_swap_loss: bool = False,
     ):
         pretrained_model = load_hf_pretrained_model(model_name_or_path)
-        embedder = StrategyEmbedderClsMap[EmbeddingStrategy(embedding_strategy)](pretrained_model)
-        super().__init__(embedder, chunk_size)
-        if use_sigmoid:
-            self.criterion = TripletSigmoidContrastLoss(temperature)
-        else:
-            self.criterion = TripletSoftmaxContrastLoss(temperature)
-        self.chunk_size = chunk_size
+        embedder = StrategyEmbedderClsMap[PoolingStrategy(embedding_strategy)](pretrained_model)
+        super().__init__(embedder)
+        temperature = temperature or 0.05
+        self.loss_type = InBatchNegLossType(loss_type)
+        match self.loss_type:
+            case InBatchNegLossType.sigmoid:
+                self.criterion = TripletInBatchNegSigmoidContrastLoss(temperature, add_swap_loss)
+            case InBatchNegLossType.softmax:
+                self.criterion = TripletInBatchNegSoftmaxContrastLoss(temperature, add_swap_loss)
+            case InBatchNegLossType.cosent:
+                self.criterion = TripletInBatchNegCoSentLoss(temperature, add_swap_loss)
 
     def forward(
-        self, text_ids: torch.Tensor, text_pos_ids: torch.Tensor, text_neg_ids: torch.Tensor
+        self,
+        text_ids: torch.Tensor,
+        text_pos_ids: torch.Tensor,
+        text_neg_ids: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
         text_embeddings = self.embedder(text_ids)
         text_pos_embeddings = self.embedder(text_pos_ids)
@@ -213,27 +246,63 @@ class EmbedderForTripletTrain(EmbedderForTrain):
         return {'loss': loss}
 
 
-def generate_batch(data: Iterable[T], batch_size: int = 32) -> Generator[list[T], None, None]:
-    iterator = iter(data)
-    while batch := list(islice(iterator, batch_size)):
-        yield batch
+class EmbedderForScoredPairTrain(EmbedderForTrain):
+    def __init__(
+        self,
+        model_name_or_path: str,
+        temperature: float | None = None,
+        embedding_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
+    ):
+        pretrained_model = load_hf_pretrained_model(model_name_or_path)
+        embedder = StrategyEmbedderClsMap[PoolingStrategy(embedding_strategy)](pretrained_model)
+        super().__init__(embedder)
+        temperature = temperature or 0.05
+        self.criterion = CoSentLoss(temperature)
+
+    def forward(
+        self,
+        text_ids: torch.Tensor,
+        text_pair_ids: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> dict[str, torch.Tensor]:
+        text_embeddings = self.embedder(text_ids)
+        text_pos_embeddings = self.embedder(text_pair_ids)
+        predict_labels = torch.cosine_similarity(text_embeddings, text_pos_embeddings, dim=-1)
+        loss = self.criterion(predict_labels, labels)
+        return {'loss': loss, 'predict_labels': predict_labels}
 
 
 class UniEmbedder:
     PROGRESS_BAR_THRESHOLD = 1000
 
-    def __init__(self, embedder: Embedder, tokenizer: Tokenizer, max_legnth: int | None = None, device: str | None = None):
+    def __init__(
+        self,
+        embedder: Embedder,
+        tokenizer: Tokenizer,
+        normalize: bool = True,
+        max_length: int | None = None,
+        device: str | None = None,
+    ):
         super().__init__()
         self.embedder = embedder.eval()
-        if device:
-            self.embedder = self.embedder.to(device)
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.embedder = self.embedder.to(device)
         self.tokenizer = tokenizer
-        self.max_length = max_legnth or self.tokenizer.model_max_length
+        self.normalize = normalize
+        self.max_length = (
+            max_length or self.embedder.encoder.config.max_length or self.embedder.encoder.config.max_position_embeddings
+        )
 
     def __call__(self, sentences: list[str], batch_size: int = 32):
         return self.encode(sentences, batch_size)
 
-    def encode(self, sentences: list[str], batch_size: int = 32, progress_bar: Literal['auto'] | bool = 'auto'):
+    def encode(
+        self,
+        sentences: list[str],
+        batch_size: int = 32,
+        progress_bar: Literal['auto'] | bool = 'auto',
+    ):
         embeddings: list[np.ndarray] = []
         if progress_bar == 'auto':
             progress_bar = len(sentences) > self.PROGRESS_BAR_THRESHOLD
@@ -245,11 +314,27 @@ class UniEmbedder:
             unit='batch',
             desc='Encoding',
         ):
-            input_ids = self.tokenizer(batch, padding=True, truncation=True, return_tensors='pt')['input_ids']
+            encodes = self.tokenizer(
+                batch,
+                padding=True,
+                truncation=True,
+                return_tensors='pt',
+                return_attention_mask=True,
+                max_length=self.max_length,
+            )
+
+            input_ids = encodes['input_ids']
             input_ids = cast(torch.Tensor, input_ids)
             input_ids = input_ids.to(self.embedder.encoder.device)
+
+            attention_mask = encodes['attention_mask']
+            attention_mask = cast(torch.Tensor, attention_mask)
+            attention_mask = attention_mask.to(self.embedder.encoder.device)
+
             with torch.inference_mode():
-                batch_embeddings = self.embedder(input_ids)
+                batch_embeddings = self.embedder(input_ids, mask=attention_mask)
+                if self.normalize:
+                    batch_embeddings = torch.nn.functional.normalize(batch_embeddings, dim=-1)
                 batch_embeddings = cast(torch.Tensor, batch_embeddings)
             embeddings.extend([i.cpu().numpy() for i in batch_embeddings])
         return embeddings
@@ -258,12 +343,10 @@ class UniEmbedder:
         return self.encode([sentence])[0]
 
     @classmethod
-    def from_pretrained(cls, model_name_or_path: str, max_legnth: int | None = None, device: str | None = None):
+    def from_pretrained(cls, model_name_or_path: str, **kwargs):
         encoder = AutoEmbedder.from_pretrained(model_name_or_path)
         tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-        if device is None:
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        return cls(encoder, tokenizer, max_legnth=max_legnth, device=device)
+        return cls(encoder, tokenizer, **kwargs)
 
     def save_pretrained(self, ouptut_dir: str):
         self.embedder.save_pretrained(ouptut_dir)

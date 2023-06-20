@@ -1,0 +1,44 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: ci
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+      
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Run image
+      uses: abatilo/actions-poetry@v2
+      with:
+        poetry-version: 1.5.0
+    - name: Install dependencies
+      run: |
+        poetry config virtualenvs.create false --local
+        poetry install
+        python -m pip uninstall torch -y
+        python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
+    - name: Lint with blue, ruff and pyright
+      run: |
+        make check-lint
+    - name: Test with pytest
+      run: |
+        make test

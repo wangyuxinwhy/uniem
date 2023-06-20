@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 import torch
-import tqdm
 from accelerate import Accelerator
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
 
 
 class Trainer:
@@ -60,7 +60,10 @@ class Trainer:
                 self.progress_bar.update()
                 self.current_step += 1
                 if batch_index % self.log_interval == 0:
-                    self.log_metrics({'loss': self.train_loss_tracker.loss}, step=self.current_step)
+                    self.log_metrics(
+                        {'loss': self.train_loss_tracker.loss},
+                        step=self.current_step,
+                    )
 
             train_metrics = self.add_prefix({'loss': self.train_loss_tracker.loss}, 'train')
             self.accelerator.log(train_metrics, step=current_epoch)
@@ -68,7 +71,11 @@ class Trainer:
             self.progress_bar.on_epoch_end()
 
             if self.validation_dataloader:
-                validation_loss = evaluate(self.model, self.validation_dataloader, self.validation_loss_tracker)
+                validation_loss = evaluate(
+                    self.model,
+                    self.validation_dataloader,
+                    self.validation_loss_tracker,
+                )
                 validation_metrics = self.add_prefix({'loss': validation_loss}, 'validation')
                 self.accelerator.log(validation_metrics, step=current_epoch)
 
@@ -90,7 +97,11 @@ class Trainer:
         return {f'{prefix}/{k}': v for k, v in values.items()}
 
 
-def evaluate(model: torch.nn.Module, dataloader: DataLoader, loss_tracker: LossTracker | None = None):
+def evaluate(
+    model: torch.nn.Module,
+    dataloader: DataLoader,
+    loss_tracker: LossTracker | None = None,
+):
     model = model.eval()
     loss_tracker = loss_tracker or LossTracker()
     for batch in dataloader:
@@ -123,7 +134,7 @@ class DistributedTqdmProgressBar:
 
     def on_epoch_start(self):
         if self.accelerator.is_main_process:
-            self.progress_bar = tqdm.tqdm(total=self.num_steps_per_epoch, **self.tqdm_kwargs)
+            self.progress_bar = tqdm(total=self.num_steps_per_epoch, **self.tqdm_kwargs)
         else:
             self.progress_bar = DummyProgressBar()
 

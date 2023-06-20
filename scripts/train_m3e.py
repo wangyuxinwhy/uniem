@@ -5,13 +5,14 @@ from typing import Annotated, Optional, cast
 import typer
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration, set_seed
+from datasets import Dataset as HfDataset
+from datasets import concatenate_datasets, load_from_disk
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup  # type: ignore
-from uniem.data import MediDataset, PairCollator, TripletCollator
+from uniem.data import M3EDataset, M3EHfDatsetWithInfo, PairCollator
 from uniem.model import (
     EmbedderForPairInBatchNegTrain,
     EmbedderForTrain,
-    EmbedderForTripletInBatchNegTrain,
     InBatchNegLossType,
     PoolingStrategy,
 )
@@ -22,21 +23,37 @@ from uniem.utils import create_adamw_optimizer
 app = typer.Typer()
 
 
+def load_all_datasets(m3e_datasets_dir: Path) -> list[M3EHfDatsetWithInfo]:
+    m3e_datasets = []
+    for data_dir in m3e_datasets_dir.glob('*.dataset'):
+        dataset_name = data_dir.stem
+        dataset_dict = load_from_disk(str(data_dir))
+        if isinstance(dataset_dict, dict):
+            dataset: HfDataset = concatenate_datasets(list(dataset_dict.values()))
+        else:
+            dataset = dataset_dict
+        m3e_datasets.append(
+            M3EHfDatsetWithInfo(
+                hf_dataset=dataset,
+                name=dataset_name,
+            )
+        )
+        print(f'load {dataset_name}')
+    return m3e_datasets
+
+
 @app.command()
 def main(
     model_name_or_path: str,
-    medi_data_file: Path,
+    m3e_datasets_dir: Path,
     # Model
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
     loss_type: Annotated[InBatchNegLossType, typer.Option(rich_help_panel='Model')] = InBatchNegLossType.softmax,
     embedding_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
-    add_swap_loss: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
     # Data
     batch_size: Annotated[int, typer.Option(rich_help_panel='Data')] = 32,
-    pair_or_triplet: Annotated[str, typer.Option(rich_help_panel='Data')] = 'triplet',
-    with_prompt: Annotated[bool, typer.Option(rich_help_panel='Data')] = True,
+    with_instruction: Annotated[bool, typer.Option(rich_help_panel='Data')] = True,
     drop_last: Annotated[bool, typer.Option(rich_help_panel='Data')] = True,
-    join_with: Annotated[str, typer.Option(rich_help_panel='Data')] = '\n',
     max_length: Annotated[int, typer.Option(rich_help_panel='Data')] = 512,
     # Optimizer
     lr: Annotated[float, typer.Option(rich_help_panel='Optimizer')] = 3e-5,
@@ -57,7 +74,7 @@ def main(
     if num_workers >= 1:
         os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
 
-    output_dir = output_dir or Path('experiments') / 'medi'
+    output_dir = output_dir or Path('experiments') / 'm3e'
     project_config = ProjectConfiguration(
         project_dir=str(output_dir),
         automatic_checkpoint_naming=True,
@@ -69,7 +86,7 @@ def main(
         project_config=project_config,
         log_with=['tensorboard'] if use_tensorboard else None,
     )
-    accelerator.init_trackers('medi')
+    accelerator.init_trackers('m3e')
 
     set_seed(seed)
     accelerator.print(f'Start with seed: {seed}')
@@ -77,18 +94,14 @@ def main(
 
     # DataLoader
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-    train_dataset = MediDataset(
-        medi_data_file=medi_data_file,
+    all_m3e_datasets = load_all_datasets(m3e_datasets_dir)
+    train_dataset = M3EDataset(
+        all_m3e_datasets,
         batch_size=batch_size,
-        pair_or_triplet=pair_or_triplet,
-        with_prompt=with_prompt,
-        join_with=join_with,
+        with_instruction=with_instruction,
         drop_last=drop_last,
     )
-    if pair_or_triplet == 'triplet':
-        data_collator = TripletCollator(tokenizer=tokenizer, max_length=max_length)
-    else:
-        data_collator = PairCollator(tokenizer=tokenizer, max_length=max_length)
+    data_collator = PairCollator(tokenizer=tokenizer, max_length=max_length)
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=None,
@@ -99,22 +112,12 @@ def main(
     )
     train_dataloader = accelerator.prepare(train_dataloader)
 
-    # Model
-    if pair_or_triplet == 'triplet':
-        model = EmbedderForTripletInBatchNegTrain(
-            model_name_or_path=model_name_or_path,
-            temperature=temperature,
-            loss_type=loss_type,
-            embedding_strategy=embedding_strategy,
-            add_swap_loss=add_swap_loss,
-        )
-    else:
-        model = EmbedderForPairInBatchNegTrain(
-            model_name_or_path=model_name_or_path,
-            temperature=temperature,
-            loss_type=loss_type,
-            embedding_strategy=embedding_strategy,
-        )
+    model = EmbedderForPairInBatchNegTrain(
+        model_name_or_path=model_name_or_path,
+        temperature=temperature,
+        loss_type=loss_type,
+        embedding_strategy=embedding_strategy,
+    )
     model.embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
     model = accelerator.prepare(model)
 
