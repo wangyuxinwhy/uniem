@@ -19,7 +19,7 @@ from uniem.data import (
     ScoredPairCollator,
     TripletCollator,
 )
-from uniem.data_structures import RecordType, get_record_type
+from uniem.data_structures import RecordType, infer_record_type
 from uniem.model import (
     EmbedderForPairInBatchNegTrain,
     EmbedderForScoredPairTrain,
@@ -41,6 +41,7 @@ class FineTuner:
         self,
         model_name_or_path: str,
         dataset: RawDataset,
+        record_type: RecordType | str | None = None,
     ):
         self.model_name_or_path = model_name_or_path
         self.raw_dataset = dataset
@@ -54,7 +55,10 @@ class FineTuner:
                 self.raw_dataset,
                 None,
             )
-        self.record_type = get_record_type(self.raw_train_dataset[0])  # type: ignore
+        
+        record_type = RecordType(record_type) if isinstance(record_type, str) else record_type
+        self.record_type = record_type or infer_record_type(self.raw_train_dataset[0])
+
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path)
 
     def create_finetune_datasets(
