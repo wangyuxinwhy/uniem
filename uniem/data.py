@@ -13,7 +13,7 @@ from uniem.data_structures import (
     RecordType,
     ScoredPairRecord,
     TripletRecord,
-    get_record_type,
+    infer_record_type,
     record_type_cls_map,
 )
 from uniem.types import Tokenizer
@@ -140,7 +140,7 @@ class FinetuneDataset(Dataset):
         if record_type:
             self.record_type = RecordType(record_type)
         else:
-            self.record_type = get_record_type(dataset[0])
+            self.record_type = infer_record_type(dataset[0])
         self.record_cls = record_type_cls_map[self.record_type]
 
     def __getitem__(self, index: int):

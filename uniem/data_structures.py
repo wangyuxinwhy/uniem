@@ -29,14 +29,15 @@ class ScoredPairRecord:
     label: float
 
 
+# * Order matters
 record_type_cls_map: dict[RecordType, Any] = {
-    RecordType.PAIR: PairRecord,
-    RecordType.TRIPLET: TripletRecord,
     RecordType.SCORED_PAIR: ScoredPairRecord,
+    RecordType.TRIPLET: TripletRecord,
+    RecordType.PAIR: PairRecord,
 }
 
 
-def get_record_type(record: dict) -> RecordType:
+def infer_record_type(record: dict) -> RecordType:
     record_type_field_names_map = {
         record_type: [field.name for field in fields(record_cls)] for record_type, record_cls in record_type_cls_map.items()
     }
