@@ -55,7 +55,7 @@ class FineTuner:
                 self.raw_dataset,
                 None,
             )
-        
+
         record_type = RecordType(record_type) if isinstance(record_type, str) else record_type
         self.record_type = record_type or infer_record_type(self.raw_train_dataset[0])
 
