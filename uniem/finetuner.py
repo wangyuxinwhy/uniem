@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Sequence, cast
 
 import torch
-from accelerate import Accelerator, find_executable_batch_size
+from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration, set_seed
 from datasets import Dataset as HFDataset
 from datasets import DatasetDict as HFDatasetDict
@@ -30,7 +30,7 @@ from uniem.model import (
 )
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
-from uniem.utils import create_adamw_optimizer, split_dataset_dict
+from uniem.utils import create_adamw_optimizer, find_executable_batch_size, split_dataset_dict
 
 logger = logging.getLogger(__name__)
 RawDataset = Sequence[dict] | dict[str, Sequence[dict]] | HFDatasetDict | HFDataset
@@ -154,7 +154,6 @@ class FineTuner:
     @find_executable_batch_size(starting_batch_size=256)
     def run(
         self,
-        batch_size: int = 32,
         temperature: float | None = None,
         embedding_strategy: PoolingStrategy = PoolingStrategy.last_mean,
         lr: float | None = None,
@@ -162,6 +161,7 @@ class FineTuner:
         max_length: int = 512,
         weight_decay: float = 1e-3,
         num_warmup_steps: float = 0.05,
+        batch_size: int = 32,
         epochs: int = 3,
         mixed_precision: MixedPrecisionType = MixedPrecisionType.no,
         gradient_accumulation_steps: int = 1,
@@ -172,6 +172,7 @@ class FineTuner:
         seed: int = 42,
         output_dir: Path | str | None = None,
     ):
+        
         os.environ.setdefault('TRANSFORMERS_NO_ADVISORY_WARNINGS', '1')
         if num_workers >= 1:
             os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
@@ -191,6 +192,7 @@ class FineTuner:
         accelerator.init_trackers('uniem')
 
         set_seed(seed)
+        accelerator.print(batch_size)
         accelerator.print(f'Start with seed: {seed}')
         accelerator.print(f'Output dir: {output_dir}')
 
@@ -298,7 +300,8 @@ class PrefixFineTuner(FineTuner):
             embedding_layer_weight.requires_grad = True
             embedding_layer_weight.register_hook(hook)
         return model
-
+    
+    @find_executable_batch_size(starting_batch_size=256)
     def run(
         self,
         temperature: float | None = None,
