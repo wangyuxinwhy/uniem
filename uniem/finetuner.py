@@ -173,7 +173,7 @@ class FineTuner:
         seed: int = 42,
         output_dir: Path | str | None = None,
     ):
-        
+
         os.environ.setdefault('TRANSFORMERS_NO_ADVISORY_WARNINGS', '1')
         if num_workers >= 1:
             os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
@@ -188,7 +188,7 @@ class FineTuner:
             mixed_precision=mixed_precision.value,
             gradient_accumulation_steps=gradient_accumulation_steps,
             project_config=project_config,
-            log_with=log_with
+            log_with=log_with,
         )
         accelerator.init_trackers('uniem')
 
@@ -301,7 +301,7 @@ class PrefixFineTuner(FineTuner):
             embedding_layer_weight.requires_grad = True
             embedding_layer_weight.register_hook(hook)
         return model
-    
+
     @find_executable_batch_size(starting_batch_size=256)
     def run(
         self,

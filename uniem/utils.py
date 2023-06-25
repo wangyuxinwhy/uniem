@@ -65,13 +65,13 @@ def find_executable_batch_size(function: Callable | None = None, starting_batch_
         gc.collect()
         torch.cuda.empty_cache()
         is_manually_passed_batch_size = 'batch_size' in kwargs
-        
+
         if is_manually_passed_batch_size:
             return function(*args, **kwargs)
         else:
             while True:
                 if batch_size == 0:
-                    raise RuntimeError("No executable batch size found, reached zero.")
+                    raise RuntimeError('No executable batch size found, reached zero.')
                 try:
                     kwargs['batch_size'] = batch_size
                     return function(*args, **kwargs)
@@ -83,4 +83,5 @@ def find_executable_batch_size(function: Callable | None = None, starting_batch_
                         print('Reducing batch size to', batch_size)
                     else:
                         raise
+
     return decorator
