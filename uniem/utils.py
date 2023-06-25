@@ -1,8 +1,12 @@
+import functools
+import gc
 import logging
+from functools import wraps
 from itertools import islice
-from typing import Generator, Iterable, TypeVar
+from typing import Callable, Generator, Iterable, TypeVar
 
 import torch
+from accelerate.utils.memory import should_reduce_batch_size
 
 T = TypeVar('T')
 logger = logging.getLogger(__name__)
@@ -47,3 +51,37 @@ def split_dataset_dict(dataset_dict: dict[str, T]) -> tuple[T, T | None]:
         train_dataset = dataset_dict
         validation_dataset = None
     return train_dataset, validation_dataset
+
+
+def find_executable_batch_size(function: Callable | None = None, starting_batch_size: int = 128):
+    if function is None:
+        return functools.partial(find_executable_batch_size, starting_batch_size=starting_batch_size)
+
+    batch_size = starting_batch_size
+
+    @wraps(function)
+    def decorator(*args, **kwargs):
+        nonlocal batch_size
+        gc.collect()
+        torch.cuda.empty_cache()
+        is_manually_passed_batch_size = 'batch_size' in kwargs
+
+        if is_manually_passed_batch_size:
+            return function(*args, **kwargs)
+        else:
+            while True:
+                if batch_size == 0:
+                    raise RuntimeError('No executable batch size found, reached zero.')
+                try:
+                    kwargs['batch_size'] = batch_size
+                    return function(*args, **kwargs)
+                except Exception as e:
+                    if should_reduce_batch_size(e):
+                        gc.collect()
+                        torch.cuda.empty_cache()
+                        batch_size //= 2
+                        print('Reducing batch size to', batch_size)
+                    else:
+                        raise
+
+    return decorator

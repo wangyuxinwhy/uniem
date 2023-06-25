@@ -6,7 +6,8 @@ from typing import Sequence, cast
 
 import torch
 from accelerate import Accelerator
-from accelerate.utils import ProjectConfiguration, set_seed
+from accelerate.tracking import GeneralTracker
+from accelerate.utils import LoggerType, ProjectConfiguration, set_seed
 from datasets import Dataset as HFDataset
 from datasets import DatasetDict as HFDatasetDict
 from torch.utils.data import DataLoader
@@ -30,10 +31,24 @@ from uniem.model import (
 )
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
-from uniem.utils import create_adamw_optimizer, split_dataset_dict
+from uniem.utils import create_adamw_optimizer, find_executable_batch_size, split_dataset_dict
 
 logger = logging.getLogger(__name__)
 RawDataset = Sequence[dict] | dict[str, Sequence[dict]] | HFDatasetDict | HFDataset
+
+
+def suggest_lr(model_name: str) -> float:
+    default_lr = 3e-5
+    if 'm3e-small' in model_name:
+        lr = 1e-4
+    elif 'm3e-base' in model_name:
+        lr = 5e-5
+    elif 'm3e-large' in model_name:
+        lr = 8e-6
+    else:
+        lr = default_lr
+    logger.info(f'Suggested learning rate: {lr}')
+    return lr
 
 
 class FineTuner:
@@ -137,26 +152,28 @@ class FineTuner:
                 )
         return model
 
+    @find_executable_batch_size(starting_batch_size=256)
     def run(
         self,
         temperature: float | None = None,
         embedding_strategy: PoolingStrategy = PoolingStrategy.last_mean,
-        batch_size: int = 32,
+        lr: float | None = None,
         drop_last: bool = True,
         max_length: int = 512,
-        lr: float = 3e-5,
         weight_decay: float = 1e-3,
         num_warmup_steps: float = 0.05,
+        batch_size: int = 256,
         epochs: int = 3,
         mixed_precision: MixedPrecisionType = MixedPrecisionType.no,
         gradient_accumulation_steps: int = 1,
         save_on_epoch_end: bool = False,
         num_max_checkpoints: int = 1,
-        use_tensorboard: bool = False,
+        log_with: str | LoggerType | GeneralTracker | list[str | LoggerType | GeneralTracker] | None = None,
         num_workers: int = 0,
         seed: int = 42,
         output_dir: Path | str | None = None,
     ):
+
         os.environ.setdefault('TRANSFORMERS_NO_ADVISORY_WARNINGS', '1')
         if num_workers >= 1:
             os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
@@ -171,11 +188,12 @@ class FineTuner:
             mixed_precision=mixed_precision.value,
             gradient_accumulation_steps=gradient_accumulation_steps,
             project_config=project_config,
-            log_with=['tensorboard'] if use_tensorboard else None,
+            log_with=log_with,
         )
         accelerator.init_trackers('uniem')
 
         set_seed(seed)
+        accelerator.print(batch_size)
         accelerator.print(f'Start with seed: {seed}')
         accelerator.print(f'Output dir: {output_dir}')
 
@@ -193,6 +211,7 @@ class FineTuner:
         model = accelerator.prepare(model)
 
         # Optimizer & LRScheduler
+        lr = lr or suggest_lr(self.model_name_or_path)
         optimizer = create_adamw_optimizer(model, lr=lr, weight_decay=weight_decay)
         total_steps = len(train_dataloader) * epochs
         if num_warmup_steps < 1:
@@ -283,11 +302,12 @@ class PrefixFineTuner(FineTuner):
             embedding_layer_weight.register_hook(hook)
         return model
 
+    @find_executable_batch_size(starting_batch_size=256)
     def run(
         self,
         temperature: float | None = None,
         embedding_strategy: PoolingStrategy = PoolingStrategy.last_mean,
-        batch_size: int = 32,
+        batch_size: int = 256,
         drop_last: bool = True,
         max_length: int = 512,
         lr: float = 1e-2,
