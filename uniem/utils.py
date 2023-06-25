@@ -85,3 +85,14 @@ def find_executable_batch_size(function: Callable | None = None, starting_batch_
                         raise
 
     return decorator
+
+
+def convert_to_readable_string(number: float) -> str:
+    if number >= 1e9:
+        return f"{number / 1e9:.1f}B"
+    elif number >= 1e6:
+        return f"{number / 1e6:.1f}M"
+    elif number >= 1e3:
+        return f"{number / 1e3:.1f}k"
+    else:
+        return str(number)
