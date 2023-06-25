@@ -6,7 +6,8 @@ from typing import Sequence, cast
 
 import torch
 from accelerate import Accelerator
-from accelerate.utils import ProjectConfiguration, set_seed
+from accelerate.tracking import GeneralTracker
+from accelerate.utils import LoggerType, ProjectConfiguration, set_seed
 from datasets import Dataset as HFDataset
 from datasets import DatasetDict as HFDatasetDict
 from torch.utils.data import DataLoader
@@ -167,7 +168,7 @@ class FineTuner:
         gradient_accumulation_steps: int = 1,
         save_on_epoch_end: bool = False,
         num_max_checkpoints: int = 1,
-        use_tensorboard: bool = False,
+        log_with: str | LoggerType | GeneralTracker | list[str | LoggerType | GeneralTracker] | None = None,
         num_workers: int = 0,
         seed: int = 42,
         output_dir: Path | str | None = None,
@@ -187,7 +188,7 @@ class FineTuner:
             mixed_precision=mixed_precision.value,
             gradient_accumulation_steps=gradient_accumulation_steps,
             project_config=project_config,
-            log_with=['tensorboard'] if use_tensorboard else None,
+            log_with=log_with
         )
         accelerator.init_trackers('uniem')
 
