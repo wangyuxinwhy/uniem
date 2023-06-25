@@ -47,6 +47,7 @@ def main(
     model_name_or_path: str,
     m3e_datasets_dir: Path,
     # Model
+    model_class: Annotated[Optional[str], typer.Option(rich_help_panel='Model')] = None,
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
     loss_type: Annotated[InBatchNegLossType, typer.Option(rich_help_panel='Model')] = InBatchNegLossType.softmax,
     embedding_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
@@ -115,6 +116,7 @@ def main(
 
     model = EmbedderForPairInBatchNegTrain(
         model_name_or_path=model_name_or_path,
+        model_class=model_class,
         temperature=temperature,
         loss_type=loss_type,
         embedding_strategy=embedding_strategy,

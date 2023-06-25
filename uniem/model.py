@@ -1,3 +1,4 @@
+import importlib
 from enum import Enum
 from pathlib import Path
 from typing import ClassVar, Literal, Type, TypeVar, cast
@@ -5,7 +6,7 @@ from typing import ClassVar, Literal, Type, TypeVar, cast
 import numpy as np
 import torch
 import tqdm
-from transformers import AutoConfig, AutoModel, AutoTokenizer, PreTrainedModel  # type: ignore
+from transformers import AutoModel, AutoTokenizer, PreTrainedModel  # type: ignore
 
 from uniem.criteria import (
     CoSentLoss,
@@ -47,15 +48,17 @@ def mean_pooling(hidden_state: torch.Tensor, mask: torch.Tensor | None = None) -
     return torch.sum(hidden_state * mask.unsqueeze(-1), dim=1) / torch.sum(mask, dim=-1, keepdim=True)
 
 
-def load_hf_pretrained_model(model_name_or_path: str) -> PreTrainedModel:
-    config = AutoConfig.from_pretrained(model_name_or_path)
-    if config.model_type == 't5':
-        from transformers import T5EncoderModel  # type: ignore
+def load_hf_pretrained_model(
+    model_name_or_path: str, model_class: str | None | Type[PreTrainedModel] = None
+) -> PreTrainedModel:
+    if model_class is None:
+        model_class = AutoModel
+    elif isinstance(model_class, str):
+        transformers_module = importlib.import_module('transformers')
+        model_class = getattr(transformers_module, model_class)
 
-        pretrained_model = T5EncoderModel.from_pretrained(model_name_or_path)
-    else:
-        pretrained_model = AutoModel.from_pretrained(model_name_or_path)
-    return pretrained_model  # type: ignore
+    model = model_class.from_pretrained(model_name_or_path)  # type: ignore
+    return model
 
 
 StrategyEmbedderClsMap: dict[PoolingStrategy, Type['Embedder']] = {}
@@ -187,11 +190,12 @@ class EmbedderForPairInBatchNegTrain(EmbedderForTrain):
     def __init__(
         self,
         model_name_or_path: str,
+        model_class: str | None = None,
         temperature: float | None = None,
         loss_type: InBatchNegLossType | str = InBatchNegLossType.softmax,
         embedding_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
     ):
-        pretrained_model = load_hf_pretrained_model(model_name_or_path)
+        pretrained_model = load_hf_pretrained_model(model_name_or_path, model_class=model_class)
         embedder = StrategyEmbedderClsMap[PoolingStrategy(embedding_strategy)](pretrained_model)
         super().__init__(embedder)
         temperature = temperature or 0.05
@@ -215,12 +219,13 @@ class EmbedderForTripletInBatchNegTrain(EmbedderForTrain):
     def __init__(
         self,
         model_name_or_path: str,
+        model_class: str | None = None,
         temperature: float | None = None,
         loss_type: InBatchNegLossType | str = InBatchNegLossType.softmax,
         embedding_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
         add_swap_loss: bool = False,
     ):
-        pretrained_model = load_hf_pretrained_model(model_name_or_path)
+        pretrained_model = load_hf_pretrained_model(model_name_or_path, model_class=model_class)
         embedder = StrategyEmbedderClsMap[PoolingStrategy(embedding_strategy)](pretrained_model)
         super().__init__(embedder)
         temperature = temperature or 0.05
