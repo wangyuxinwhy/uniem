@@ -31,7 +31,7 @@ default_tasks: list[AbsTask] = [
 
 
 def filter_by_name(name: str):
-    return [task for task in default_tasks if task.description['name'] == name] # type: ignore
+    return [task for task in default_tasks if task.description['name'] == name]   # type: ignore
 
 
 def filter_by_type(task_type: TaskType):
