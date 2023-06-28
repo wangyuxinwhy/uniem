@@ -36,15 +36,15 @@ class InBatchNegLossType(str, Enum):
     cosent = 'cosent'
 
 
-def creat_mask_from_input_ids(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
+def creat_attention_mask_from_input_ids(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
     return input_ids != pad_token_id
 
 
-def mean_pooling(hidden_state: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
-    if mask is None:
+def mean_pooling(hidden_state: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
+    if attention_mask is None:
         return torch.mean(hidden_state, dim=1)
-    mask = mask.float()
-    return torch.sum(hidden_state * mask.unsqueeze(-1), dim=1) / torch.sum(mask, dim=-1, keepdim=True)
+    attention_mask = attention_mask.float()
+    return torch.sum(hidden_state * attention_mask.unsqueeze(-1), dim=1) / torch.sum(attention_mask, dim=-1, keepdim=True)
 
 
 def load_hf_pretrained_model(model_name_or_path: str) -> PreTrainedModel:
@@ -99,31 +99,33 @@ class Embedder(torch.nn.Module):
 class LastMeanEmbedder(Embedder):
     pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.last_mean
 
-    def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
-        if mask is None:
-            mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
-        embeddings = self.encoder(input_ids).last_hidden_state
-        embeddings = mean_pooling(embeddings, mask)
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
+        if attention_mask is None:
+            attention_mask = creat_attention_mask_from_input_ids(input_ids, self.pad_token_id)
+        embeddings = self.encoder(input_ids, attention_mask=attention_mask).last_hidden_state
+        embeddings = mean_pooling(embeddings, attention_mask)
         return embeddings
 
 
 class ClsEmbedder(Embedder):
     pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.cls
 
-    def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
-        embeddings = self.encoder(input_ids).last_hidden_state[:, 0]
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
+        if attention_mask is None:
+            attention_mask = creat_attention_mask_from_input_ids(input_ids, self.pad_token_id)
+        embeddings = self.encoder(input_ids, attention_mask=attention_mask).last_hidden_state[:, 0]
         return embeddings
 
 
 class FirstLastEmbedder(Embedder):
     pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.first_last_mean
 
-    def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
-        if mask is None:
-            mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
-        embeddings = self.encoder(input_ids, output_hidden_states=True).hidden_states
-        first_embeddings = mean_pooling(embeddings[0], mask)
-        last_embeddings = mean_pooling(embeddings[-1], mask)
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
+        if attention_mask is None:
+            attention_mask = creat_attention_mask_from_input_ids(input_ids, self.pad_token_id)
+        embeddings = self.encoder(input_ids, attention_mask=attention_mask, output_hidden_states=True).hidden_states
+        first_embeddings = mean_pooling(embeddings[0], attention_mask)
+        last_embeddings = mean_pooling(embeddings[-1], attention_mask)
         embeddings = (first_embeddings + last_embeddings) / 2
         return embeddings
 
@@ -135,12 +137,14 @@ class EmbeddingLastEmbedder(Embedder):
         super().__init__(encoder, pad_token_id)
         self.embedding_layer = self.encoder.get_input_embeddings()
 
-    def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
-        if mask is None:
-            mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
+        if attention_mask is None:
+            attention_mask = creat_attention_mask_from_input_ids(input_ids, self.pad_token_id)
         static_embeddings = self.embedding_layer(input_ids)
-        mean_last_embeddings = mean_pooling(self.encoder(input_ids).last_hidden_state, mask)
-        mean_static_embeddings = mean_pooling(static_embeddings, mask)
+        mean_last_embeddings = mean_pooling(
+            self.encoder(input_ids, attention_mask=attention_mask).last_hidden_state, attention_mask
+        )
+        mean_static_embeddings = mean_pooling(static_embeddings, attention_mask)
         return (mean_last_embeddings + mean_static_embeddings) / 2
 
 
@@ -151,13 +155,13 @@ class LastWeightedEmbedder(Embedder):
         super().__init__(encoder, pad_token_id)
         self.embedding_layer = self.encoder.get_input_embeddings()
 
-    def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
-        if mask is None:
-            mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
+        if attention_mask is None:
+            attention_mask = creat_attention_mask_from_input_ids(input_ids, self.pad_token_id)
         weights = (torch.arange(input_ids.shape[1], device=input_ids.device) + 1).float()
         embeddings = self.encoder(input_ids).last_hidden_state
-        embeddings = embeddings * mask.unsqueeze(-1).float() * weights.unsqueeze(0).unsqueeze(-1)
-        embeddings = torch.sum(embeddings, dim=1) / torch.sum(weights * mask, dim=-1, keepdim=True)
+        embeddings = embeddings * attention_mask.unsqueeze(-1).float() * weights.unsqueeze(0).unsqueeze(-1)
+        embeddings = torch.sum(embeddings, dim=1) / torch.sum(weights * attention_mask, dim=-1, keepdim=True)
         return embeddings
 
 
@@ -332,7 +336,7 @@ class UniEmbedder:
             attention_mask = attention_mask.to(self.embedder.encoder.device)
 
             with torch.inference_mode():
-                batch_embeddings = self.embedder(input_ids, mask=attention_mask)
+                batch_embeddings = self.embedder(input_ids, attention_mask=attention_mask)
                 if self.normalize:
                     batch_embeddings = torch.nn.functional.normalize(batch_embeddings, dim=-1)
                 batch_embeddings = cast(torch.Tensor, batch_embeddings)
