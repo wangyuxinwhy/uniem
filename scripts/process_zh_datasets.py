@@ -107,6 +107,7 @@ def load_wiki_atomic_edits():
         }
 
     dataset = dataset.map(_process)
+    dataset = dataset.rename_columns({'base_sentence': 'text', 'edited_sentence': 'text_pos'})
     return dataset
 
 
