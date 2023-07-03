@@ -49,7 +49,7 @@ def mean_pooling(hidden_state: torch.Tensor, attention_mask: torch.Tensor | None
 
 
 def load_hf_pretrained_model(
-    model_name_or_path: str, model_class: str | None | Type[PreTrainedModel] = None
+    model_name_or_path: str, model_class: str | None | Type[PreTrainedModel] | Type[AutoModel] = None
 ) -> PreTrainedModel:
     if model_class is None:
         model_class = AutoModel
@@ -58,6 +58,7 @@ def load_hf_pretrained_model(
         model_class = getattr(transformers_module, model_class)
 
     model = model_class.from_pretrained(model_name_or_path)  # type: ignore
+    model = cast(PreTrainedModel, model)
     return model
 
 

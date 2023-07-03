@@ -18,7 +18,7 @@ from uniem.model import (
 )
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
-from uniem.utils import convert_to_readable_string, create_adamw_optimizer
+from uniem.utils import apply_bitfit, convert_to_readable_string, create_adamw_optimizer
 
 app = typer.Typer()
 
@@ -122,11 +122,7 @@ def main(
         embedding_strategy=embedding_strategy,
     )
     if bitfit:
-        for name, param in model.named_parameters():
-            if 'bias' in name:
-                param.requires_grad = True
-            else:
-                param.requires_grad = False
+        apply_bitfit(model)
     num_training_paramters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     accelerator.print(f'Number of training parameters: {convert_to_readable_string(num_training_paramters)}')
     model.embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
