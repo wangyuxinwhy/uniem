@@ -8,7 +8,7 @@ from uniem.model import (
     LastMeanEmbedder,
     LastWeightedEmbedder,
     UniEmbedder,
-    creat_mask_from_input_ids,
+    creat_attention_mask_from_input_ids,
     mean_pooling,
 )
 
@@ -24,7 +24,7 @@ def test_creat_mask_from_input_ids():
         dtype=torch.long,
     )
 
-    mask = creat_mask_from_input_ids(input_ids, 0)
+    mask = creat_attention_mask_from_input_ids(input_ids, 0)
 
     assert torch.equal(
         mask,
