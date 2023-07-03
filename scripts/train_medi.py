@@ -17,7 +17,7 @@ from uniem.model import (
 )
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
-from uniem.utils import create_adamw_optimizer
+from uniem.utils import ConfigFile, create_adamw_optimizer
 
 app = typer.Typer()
 
@@ -52,6 +52,8 @@ def main(
     num_workers: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 0,
     seed: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 42,
     output_dir: Annotated[Optional[Path], typer.Option(rich_help_panel='Trainer')] = None,
+    # Config
+    config_file: ConfigFile = None,
 ):
     os.environ.setdefault('TRANSFORMERS_NO_ADVISORY_WARNINGS', '1')
     if num_workers >= 1:

@@ -1,15 +1,50 @@
 import functools
 import gc
+import json
 import logging
 from functools import wraps
 from itertools import islice
-from typing import Callable, Generator, Iterable, TypeVar
+from pathlib import Path
+from typing import Annotated, Any, Callable, Generator, Iterable, Optional, TypeVar
 
 import torch
+import typer
+import yaml
 from accelerate.utils.memory import should_reduce_batch_size
 
 T = TypeVar('T')
 logger = logging.getLogger(__name__)
+
+
+def load_from_config_file(config_file: str | Path) -> dict[str, Any]:
+    config_file = str(config_file)
+    if config_file.endswith('.yaml') or config_file.endswith('.yml'):
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
+    elif config_file.endswith('.json'):
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+    else:
+        raise ValueError(f'Unknown config file format: {config_file}, only .yaml, .yml and .json are supported')
+    return config
+
+
+def config_file_callback(ctx: typer.Context, param: typer.CallbackParam, param_value: Any):
+    if param_value is None:
+        return param_value
+    try:
+        config = load_from_config_file(param_value)
+        ctx.default_map = ctx.default_map or {}
+        ctx.default_map.update(config)
+    except Exception as e:
+        raise typer.BadParameter(str(e), ctx=ctx, param=param) from e
+    return param_value
+
+
+ConfigFile = Annotated[
+    Optional[Path],
+    typer.Option(..., callback=config_file_callback, is_eager=True, help='Config file path, supports yaml and json'),
+]
 
 
 def create_adamw_optimizer(model: torch.nn.Module, lr: float, weight_decay=1e-3):
