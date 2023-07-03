@@ -18,7 +18,7 @@ from uniem.model import (
 )
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
-from uniem.utils import create_adamw_optimizer
+from uniem.utils import apply_bitfit, convert_to_readable_string, create_adamw_optimizer
 
 app = typer.Typer()
 
@@ -47,6 +47,7 @@ def main(
     model_name_or_path: str,
     m3e_datasets_dir: Path,
     # Model
+    model_class: Annotated[Optional[str], typer.Option(rich_help_panel='Model')] = None,
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
     loss_type: Annotated[InBatchNegLossType, typer.Option(rich_help_panel='Model')] = InBatchNegLossType.softmax,
     embedding_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
@@ -61,6 +62,7 @@ def main(
     num_warmup_steps: Annotated[float, typer.Option(rich_help_panel='Optimizer')] = 0.05,
     # Trainer
     epochs: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 3,
+    bitfit: Annotated[bool, typer.Option(rich_help_panel='Trainer')] = False,
     mixed_precision: Annotated[MixedPrecisionType, typer.Option(rich_help_panel='Trainer')] = MixedPrecisionType.no,
     gradient_accumulation_steps: Annotated[int, typer.Option(rich_help_panel='Trainer')] = 1,
     save_on_epoch_end: Annotated[bool, typer.Option(rich_help_panel='Trainer')] = False,
@@ -114,10 +116,15 @@ def main(
 
     model = EmbedderForPairInBatchNegTrain(
         model_name_or_path=model_name_or_path,
+        model_class=model_class,
         temperature=temperature,
         loss_type=loss_type,
         embedding_strategy=embedding_strategy,
     )
+    if bitfit:
+        apply_bitfit(model)
+    num_training_paramters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    accelerator.print(f'Number of training parameters: {convert_to_readable_string(num_training_paramters)}')
     model.embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
     model = accelerator.prepare(model)
 

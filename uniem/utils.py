@@ -35,6 +35,14 @@ def generate_batch(data: Iterable[T], batch_size: int = 32) -> Generator[list[T]
         yield batch
 
 
+def apply_bitfit(model: torch.nn.Module):
+    for name, param in model.named_parameters():
+        if 'bias' in name:
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
+
+
 def split_dataset_dict(dataset_dict: dict[str, T]) -> tuple[T, T | None]:
     if isinstance(dataset_dict, dict):
         train_dataset = dataset_dict['train']
@@ -85,3 +93,14 @@ def find_executable_batch_size(function: Callable | None = None, starting_batch_
                         raise
 
     return decorator
+
+
+def convert_to_readable_string(number: float) -> str:
+    if number >= 1e9:
+        return f'{number / 1e9:.1f}B'
+    elif number >= 1e6:
+        return f'{number / 1e6:.1f}M'
+    elif number >= 1e3:
+        return f'{number / 1e3:.1f}k'
+    else:
+        return str(number)
