@@ -1,3 +1,4 @@
+# pyright: basic, reportGeneralTypeIssues=false
 from pathlib import Path
 from typing import cast
 
@@ -366,6 +367,42 @@ alpaca_gpt4_description = DatasetDescription(
     domains=['百科'],
     instruction_type='',
 )
+
+
+def convert_t2ranking_to_scored_pair_format():
+    from tqdm import tqdm
+    from datasets import load_dataset
+
+    collection_dataset = load_dataset('THUIR/T2Ranking', 'collection')['train']
+    train_queries_dataset = load_dataset('THUIR/T2Ranking', 'queries.train')['train']
+    dev_queries_dataset = load_dataset('THUIR/T2Ranking', 'queries.dev')['train']
+    train_rels_dataset = load_dataset('THUIR/T2Ranking', 'qrels.train')['train']
+    dev_rels_dataset = load_dataset('THUIR/T2Ranking', 'qrels.dev')['train']
+
+    train_records = []
+    train_query_id_text_map = {query['qid']: query['text'] for query in train_queries_dataset}
+    for rel in tqdm(train_rels_dataset, desc='Process Train Dataset'):
+        query = train_query_id_text_map[rel['qid']]
+        passage = collection_dataset[rel['pid']]['text']
+        rel = rel['rel']
+        train_records.append({'query': query, 'passage': passage, 'rel': rel})
+    train_datset = Dataset.from_list(train_records)
+    train_datset.info.description = collection_dataset.info.description
+    train_datset.info.homepage = collection_dataset.info.homepage
+    train_datset.info.license = collection_dataset.info.license
+
+    dev_records = []
+    dev_query_id_text_map = {query['qid']: query['text'] for query in dev_queries_dataset}
+    for rel in tqdm(dev_rels_dataset, desc='Process Dev Dataset'):
+        query = dev_query_id_text_map[rel['qid']]
+        passage = collection_dataset[rel['pid']]['text']
+        rel = rel['rel']
+        dev_records.append({'query': query, 'passage': passage, 'rel': rel})
+    dev_datset = Dataset.from_list(dev_records)
+    dev_datset.info.description = collection_dataset.info.description
+    dev_datset.info.homepage = collection_dataset.info.homepage
+    dev_datset.info.license = collection_dataset.info.license
+    return DatasetDict(train=train_datset, dev=dev_datset)
 
 
 ALL_DATASETS: list[UniemDataset] = [

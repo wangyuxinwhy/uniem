@@ -49,15 +49,16 @@ def mean_pooling(hidden_state: torch.Tensor, mask: torch.Tensor | None = None) -
 
 
 def load_hf_pretrained_model(
-    model_name_or_path: str, model_class: str | None | Type[PreTrainedModel] = None
+    model_name_or_path: str, model_class: str | None | Type[PreTrainedModel] | Type[AutoModel] = None
 ) -> PreTrainedModel:
     if model_class is None:
         model_class = AutoModel
     elif isinstance(model_class, str):
         transformers_module = importlib.import_module('transformers')
         model_class = getattr(transformers_module, model_class)
-
-    model = model_class.from_pretrained(model_name_or_path)  # type: ignore
+        model_class = cast(Type[PreTrainedModel], model_class)
+    model = model_class.from_pretrained(model_name_or_path)
+    model = cast(PreTrainedModel, model)
     return model
 
 
@@ -105,7 +106,7 @@ class LastMeanEmbedder(Embedder):
     def forward(self, input_ids: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         if mask is None:
             mask = creat_mask_from_input_ids(input_ids, self.pad_token_id)
-        embeddings = self.encoder(input_ids).last_hidden_state
+        embeddings = self.encoder(input_ids, attention_mask=mask).last_hidden_state
         embeddings = mean_pooling(embeddings, mask)
         return embeddings
 
@@ -255,10 +256,11 @@ class EmbedderForScoredPairTrain(EmbedderForTrain):
     def __init__(
         self,
         model_name_or_path: str,
+        model_class: str | None = None,
         temperature: float | None = None,
         embedding_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
     ):
-        pretrained_model = load_hf_pretrained_model(model_name_or_path)
+        pretrained_model = load_hf_pretrained_model(model_name_or_path, model_class=model_class)
         embedder = StrategyEmbedderClsMap[PoolingStrategy(embedding_strategy)](pretrained_model)
         super().__init__(embedder)
         temperature = temperature or 0.05
