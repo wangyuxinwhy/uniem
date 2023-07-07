@@ -29,7 +29,7 @@ def main(
     # Model
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
     loss_type: Annotated[InBatchNegLossType, typer.Option(rich_help_panel='Model')] = InBatchNegLossType.softmax,
-    embedding_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
+    pooling_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
     add_swap_loss: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
     # Data
     batch_size: Annotated[int, typer.Option(rich_help_panel='Data')] = 32,
@@ -107,7 +107,7 @@ def main(
             model_name_or_path=model_name_or_path,
             temperature=temperature,
             loss_type=loss_type,
-            embedding_strategy=embedding_strategy,
+            pooling_strategy=pooling_strategy,
             add_swap_loss=add_swap_loss,
         )
     else:
@@ -115,7 +115,7 @@ def main(
             model_name_or_path=model_name_or_path,
             temperature=temperature,
             loss_type=loss_type,
-            embedding_strategy=embedding_strategy,
+            pooling_strategy=pooling_strategy,
         )
     model.embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
     model = accelerator.prepare(model)

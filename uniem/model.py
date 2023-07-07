@@ -186,9 +186,15 @@ class AutoEmbedder:
 class EmbedderForTrain(torch.nn.Module):
     embedder: Embedder
 
-    def __init__(self, embedder: Embedder):
+    def __init__(
+        self,
+        model_name_or_path: str,
+        model_class: str | None = None,
+        pooling_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
+    ):
         super().__init__()
-        self.embedder = embedder
+        pretrained_model = load_hf_pretrained_model(model_name_or_path, model_class=model_class)
+        self.embedder = StrategyEmbedderClsMap[PoolingStrategy(pooling_strategy)](pretrained_model)
 
 
 class EmbedderForPairInBatchNegTrain(EmbedderForTrain):
@@ -196,14 +202,11 @@ class EmbedderForPairInBatchNegTrain(EmbedderForTrain):
         self,
         model_name_or_path: str,
         model_class: str | None = None,
-        temperature: float | None = None,
+        pooling_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
+        temperature: float = 0.05,
         loss_type: InBatchNegLossType | str = InBatchNegLossType.softmax,
-        embedding_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
     ):
-        pretrained_model = load_hf_pretrained_model(model_name_or_path, model_class=model_class)
-        embedder = StrategyEmbedderClsMap[PoolingStrategy(embedding_strategy)](pretrained_model)
-        super().__init__(embedder)
-        temperature = temperature or 0.05
+        super().__init__(model_name_or_path, model_class, pooling_strategy)
         self.loss_type = InBatchNegLossType(loss_type)
         match self.loss_type:
             case InBatchNegLossType.sigmoid:
@@ -225,15 +228,12 @@ class EmbedderForTripletInBatchNegTrain(EmbedderForTrain):
         self,
         model_name_or_path: str,
         model_class: str | None = None,
-        temperature: float | None = None,
+        pooling_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
+        temperature: float = 0.05,
         loss_type: InBatchNegLossType | str = InBatchNegLossType.softmax,
-        embedding_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
         add_swap_loss: bool = False,
     ):
-        pretrained_model = load_hf_pretrained_model(model_name_or_path, model_class=model_class)
-        embedder = StrategyEmbedderClsMap[PoolingStrategy(embedding_strategy)](pretrained_model)
-        super().__init__(embedder)
-        temperature = temperature or 0.05
+        super().__init__(model_name_or_path, model_class, pooling_strategy)
         self.loss_type = InBatchNegLossType(loss_type)
         match self.loss_type:
             case InBatchNegLossType.sigmoid:
@@ -261,13 +261,10 @@ class EmbedderForScoredPairTrain(EmbedderForTrain):
         self,
         model_name_or_path: str,
         model_class: str | None = None,
-        temperature: float | None = None,
-        embedding_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
+        pooling_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
+        temperature: float = 0.05,
     ):
-        pretrained_model = load_hf_pretrained_model(model_name_or_path, model_class=model_class)
-        embedder = StrategyEmbedderClsMap[PoolingStrategy(embedding_strategy)](pretrained_model)
-        super().__init__(embedder)
-        temperature = temperature or 0.05
+        super().__init__(model_name_or_path, model_class, pooling_strategy)
         self.criterion = CoSentLoss(temperature)
 
     def forward(

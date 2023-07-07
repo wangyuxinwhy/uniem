@@ -50,7 +50,7 @@ def main(
     model_class: Annotated[Optional[str], typer.Option(rich_help_panel='Model')] = None,
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
     loss_type: Annotated[InBatchNegLossType, typer.Option(rich_help_panel='Model')] = InBatchNegLossType.softmax,
-    embedding_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
+    pooling_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
     # Data
     batch_size: Annotated[int, typer.Option(rich_help_panel='Data')] = 32,
     with_instruction: Annotated[bool, typer.Option(rich_help_panel='Data')] = True,
@@ -121,7 +121,7 @@ def main(
         model_class=model_class,
         temperature=temperature,
         loss_type=loss_type,
-        embedding_strategy=embedding_strategy,
+        pooling_strategy=pooling_strategy,
     )
     if bitfit:
         apply_bitfit(model)
