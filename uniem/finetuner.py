@@ -57,6 +57,7 @@ class FineTuner:
         model_name_or_path: str,
         dataset: RawDataset,
         record_type: RecordType | str | None = None,
+        model_class: str | None = None,
     ):
         self.model_name_or_path = model_name_or_path
         self.raw_dataset = dataset
@@ -73,7 +74,7 @@ class FineTuner:
 
         record_type = RecordType(record_type) if isinstance(record_type, str) else record_type
         self.record_type = record_type or infer_record_type(self.raw_train_dataset[0])
-
+        self.model_class = model_class
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path)
 
     def create_finetune_datasets(
@@ -99,6 +100,8 @@ class FineTuner:
                 data_collator = TripletCollator(tokenizer=self.tokenizer, max_length=max_length)
             case RecordType.SCORED_PAIR:
                 data_collator = ScoredPairCollator(tokenizer=self.tokenizer, max_length=max_length)
+            case _:
+                raise ValueError('Only supports pair, triplet and scored pair record.')
 
         train_dataloader = DataLoader(
             train_dataset,
@@ -128,11 +131,13 @@ class FineTuner:
         self,
         temperature: float | None = None,
         embedding_strategy: PoolingStrategy = PoolingStrategy.last_mean,
+        model_class: str | None = None,
     ) -> EmbedderForTrain:
         match self.record_type:
             case RecordType.PAIR:
                 model = EmbedderForPairInBatchNegTrain(
                     model_name_or_path=self.model_name_or_path,
+                    model_class=model_class,
                     temperature=temperature,
                     loss_type=InBatchNegLossType.softmax,
                     embedding_strategy=embedding_strategy,
@@ -140,6 +145,7 @@ class FineTuner:
             case RecordType.TRIPLET:
                 model = EmbedderForTripletInBatchNegTrain(
                     model_name_or_path=self.model_name_or_path,
+                    model_class=model_class,
                     temperature=temperature,
                     loss_type=InBatchNegLossType.softmax,
                     embedding_strategy=embedding_strategy,
@@ -147,6 +153,7 @@ class FineTuner:
             case RecordType.SCORED_PAIR:
                 model = EmbedderForScoredPairTrain(
                     model_name_or_path=self.model_name_or_path,
+                    model_class=model_class,
                     temperature=temperature,
                     embedding_strategy=embedding_strategy,
                 )
@@ -206,7 +213,9 @@ class FineTuner:
         train_dataloader = accelerator.prepare(train_dataloader)
         validation_dataloader = accelerator.prepare(validation_dataloader) if validation_dataloader is not None else None
 
-        model = self.create_finetune_model(temperature=temperature, embedding_strategy=embedding_strategy)
+        model = self.create_finetune_model(
+            temperature=temperature, embedding_strategy=embedding_strategy, model_class=self.model_class
+        )
         model.embedder.encoder.config.pad_token_id = self.tokenizer.pad_token_id
         model = accelerator.prepare(model)
 
@@ -263,6 +272,7 @@ class PrefixFineTuner(FineTuner):
         additional_special_tokens: list[str],
         prefix: str | None = None,
         only_train_additional_special_tokens: bool = True,
+        model_class: str | None = None,
     ):
         super().__init__(model_name_or_path, dataset)
         self.special_prefix_tokens = additional_special_tokens
@@ -270,6 +280,7 @@ class PrefixFineTuner(FineTuner):
         self.tokenizer.add_special_tokens({'additional_special_tokens': additional_special_tokens})  # type: ignore
         self.additional_special_token_ids = self.tokenizer.convert_tokens_to_ids(additional_special_tokens)
         self.only_train_additional_special_tokens = only_train_additional_special_tokens
+        self.model_class = model_class
 
     def create_finetune_datasets(
         self,
@@ -286,8 +297,9 @@ class PrefixFineTuner(FineTuner):
         self,
         temperature: float | None = None,
         embedding_strategy: PoolingStrategy = PoolingStrategy.last_mean,
+        model_class: str | None = None,
     ) -> EmbedderForTrain:
-        model = super().create_finetune_model(temperature, embedding_strategy)
+        model = super().create_finetune_model(temperature, embedding_strategy, model_class)
         model.embedder.encoder.resize_token_embeddings(len(self.tokenizer))
         hook = functools.partial(
             partial_freeze_gradients,
@@ -352,7 +364,9 @@ class PrefixFineTuner(FineTuner):
         train_dataloader = accelerator.prepare(train_dataloader)
         validation_dataloader = accelerator.prepare(validation_dataloader) if validation_dataloader is not None else None
 
-        model = self.create_finetune_model(temperature=temperature, embedding_strategy=embedding_strategy)
+        model = self.create_finetune_model(
+            temperature=temperature, embedding_strategy=embedding_strategy, model_class=self.model_class
+        )
         model.embedder.encoder.config.pad_token_id = self.tokenizer.pad_token_id
         model = accelerator.prepare(model)
 

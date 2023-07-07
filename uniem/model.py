@@ -260,10 +260,11 @@ class EmbedderForScoredPairTrain(EmbedderForTrain):
     def __init__(
         self,
         model_name_or_path: str,
+        model_class: str | None = None,
         temperature: float | None = None,
         embedding_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
     ):
-        pretrained_model = load_hf_pretrained_model(model_name_or_path)
+        pretrained_model = load_hf_pretrained_model(model_name_or_path, model_class=model_class)
         embedder = StrategyEmbedderClsMap[PoolingStrategy(embedding_strategy)](pretrained_model)
         super().__init__(embedder)
         temperature = temperature or 0.05
