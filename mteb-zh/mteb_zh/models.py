@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from enum import Enum
@@ -6,6 +7,7 @@ from typing import Any, Generator, Iterable, Optional, Protocol, TypeVar, cast
 
 import numpy as np
 import openai
+import requests
 import torch
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
@@ -24,6 +26,7 @@ class ModelType(str, Enum):
     luotuo = 'luotuo'
     erlangshen = 'erlangshen'
     openai = 'openai'
+    minimax = 'minimax'
     azure = 'azure'
 
 
@@ -63,6 +66,13 @@ def load_model(model_type: ModelType, model_id: str | None = None) -> MTEBModel:
                 return ErLangShenModel(model_name='IDEA-CCNL/Erlangshen-SimCSE-110M-Chinese')
             else:
                 return ErLangShenModel(model_name=model_id)
+        case ModelType.minimax:
+            if model_id is None:
+                return MiniMaxModel()
+            else:
+                if model_id not in {'db', 'query'}:
+                    raise ValueError(f'Unknown model type: {model_id}')
+                return MiniMaxModel(embedding_type=model_id)
         case _:
             raise ValueError(f'Unknown model type: {model_type}')
 
@@ -71,6 +81,25 @@ def generate_batch(data: Iterable[T], batch_size: int = 32) -> Generator[list[T]
     iterator = iter(data)
     while batch := list(islice(iterator, batch_size)):
         yield batch
+
+
+class MiniMaxModel:
+    def __init__(self, embedding_type: str = 'db', group_id: str | None = None, api_key: str | None = None) -> None:
+        self.embedding_type = embedding_type
+        self.group_id = group_id or os.environ['MINIMAX_GROUP_ID']
+        self.api_key = api_key or os.environ['MINIMAX_API_KEY']
+        self.url = f'https://api.minimax.chat/v1/embeddings?GroupId={self.group_id}'
+
+    def encode(self, sentences: list[str], batch_size: int = 32, **kwargs) -> list[np.ndarray]:
+        headers = {'Authorization': f'Bearer {self.api_key}', 'Content-Type': 'application/json'}
+
+        embeddings = []
+        for batch_sentence in tqdm(generate_batch(sentences, batch_size), total=len(sentences) // batch_size):
+            data = {'texts': batch_sentence, 'model': 'embo-01', 'type': 'db'}
+            response = requests.post(self.url, headers=headers, data=json.dumps(data)).json()
+            for embedding in response['vectors']:
+                embeddings.append(np.array(embedding))
+        return embeddings
 
 
 class OpenAIModel:

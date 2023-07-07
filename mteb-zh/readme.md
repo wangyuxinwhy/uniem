@@ -12,6 +12,10 @@ MTEB-zh 是一个使用 [MTEB](https://github.com/embeddings-benchmark/mteb) 框
 - [x] [UER](https://huggingface.co/uer/sbert-base-chinese-nli)
 - [x] [ErLangShen](https://huggingface.co/IDEA-CCNL/Erlangshen-SimCSE-110M-Chinese)
 - [x] [openai](https://openai.com/blog/new-and-improved-embedding-model)
+- [x] [minimax](https://api.minimax.chat/login)
+- [x] [luotuo](https://github.com/LC1332/Luotuo-Text-Embedding)
+
+> luotuo 和 minimax 都是在实验和测试阶段，因此只是在接口上支持了这两个模型，但并未进行评测。
 
 ## 评测
 
