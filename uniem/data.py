@@ -2,11 +2,12 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence, cast
+from typing import Any, Iterable, Sequence, cast
 
 import torch
 from datasets import Dataset as HfDataset
-from torch.utils.data import Dataset, RandomSampler
+from datasets import IterableDataset as HfIterableDataset
+from torch.utils.data import Dataset, IterableDataset, RandomSampler
 
 from uniem.data_structures import (
     PairRecord,
@@ -151,6 +152,24 @@ class FinetuneDataset(Dataset):
         return len(self.dataset)
 
 
+class FinetuneIterableDataset(IterableDataset):
+    def __init__(
+        self,
+        dataset: HfIterableDataset | Iterable[dict],
+        record_type: RecordType | str | None = None,
+    ) -> None:
+        self.dataset = dataset
+        if record_type:
+            self.record_type = RecordType(record_type)
+        else:
+            self.record_type = infer_record_type(next(iter(dataset)))
+        self.record_cls = record_type_cls_map[self.record_type]
+
+    def __iter__(self):
+        for record in self.dataset:
+            yield self.record_cls(**record)
+
+
 class PrefixFinetuneDataset(FinetuneDataset):
     def __init__(
         self,
@@ -171,6 +190,28 @@ class PrefixFinetuneDataset(FinetuneDataset):
             case RecordType.SCORED_PAIR:
                 record['sentence1'] = self.prefix + record['sentence1']
         return self.record_cls(**record)
+
+
+class PrefixFinetuneIterableDataset(FinetuneIterableDataset):
+    def __init__(
+        self,
+        dataset: HfIterableDataset | Iterable[dict],
+        prefix: str,
+        record_type: RecordType | str | None = None,
+    ) -> None:
+        super().__init__(dataset=dataset, record_type=record_type)
+        self.prefix = prefix
+
+    def __iter__(self):
+        for record in self.dataset:
+            match self.record_type:
+                case RecordType.PAIR:
+                    record['text'] = self.prefix + record['text']
+                case RecordType.TRIPLET:
+                    record['text'] = self.prefix + record['text']
+                case RecordType.SCORED_PAIR:
+                    record['sentence1'] = self.prefix + record['sentence1']
+            yield self.record_cls(**record)
 
 
 class MediDataset(Dataset):

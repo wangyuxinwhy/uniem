@@ -11,6 +11,7 @@ import torch
 import typer
 import yaml
 from accelerate.utils.memory import should_reduce_batch_size
+from transformers import PretrainedConfig
 
 T = TypeVar('T')
 logger = logging.getLogger(__name__)
@@ -47,6 +48,10 @@ ConfigFile = Annotated[
 ]
 
 
+def is_uniem_embedder(config: PretrainedConfig):
+    return hasattr(config, 'uniem_pooling_strategy') or hasattr(config, 'uniem_embedding_strategy')
+
+
 def create_adamw_optimizer(model: torch.nn.Module, lr: float, weight_decay=1e-3):
     parameters = list(model.named_parameters())
     no_decay = ['bias', 'LayerNorm', 'layernorm']
@@ -62,6 +67,10 @@ def create_adamw_optimizer(model: torch.nn.Module, lr: float, weight_decay=1e-3)
     ]
     optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=lr)
     return optimizer
+
+
+def create_attention_mask_from_input_ids(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
+    return input_ids != pad_token_id
 
 
 def generate_batch(data: Iterable[T], batch_size: int = 32) -> Generator[list[T], None, None]:

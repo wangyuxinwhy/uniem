@@ -3,8 +3,8 @@ from typing import Sequence, TypeVar, cast
 
 import torch
 
-from uniem.data import FinetuneDataset, PrefixFinetuneDataset
-from uniem.model import EmbedderForTrain
+from uniem.data import FinetuneDataset, FinetuneIterableDataset, PrefixFinetuneDataset, PrefixFinetuneIterableDataset
+from uniem.model import EmbedderForTrain, UniemEmbedder
 from uniem.types import Tokenizer
 
 T = TypeVar('T', bound=EmbedderForTrain)
@@ -67,7 +67,12 @@ class PrefixTraining(TrainingStrategy):
         return tokenizer
 
     def apply_model(self, model: T) -> T:
-        model.embedder.encoder.resize_token_embeddings(len(self.tokenizer))
+        embedder = model.embedder
+        if not isinstance(embedder, UniemEmbedder):
+            raise ValueError('Prefix training is only supported for UniemEmbedder')
+        embedder = cast(UniemEmbedder, embedder)
+
+        embedder.encoder.resize_token_embeddings(len(self.tokenizer))
         hook = functools.partial(
             partial_freeze_gradients,
             train_indices=torch.tensor(self.additional_special_token_ids),
@@ -75,11 +80,14 @@ class PrefixTraining(TrainingStrategy):
         if self.only_train_additional_special_tokens:
             for param in model.parameters():
                 param.requires_grad = False
-            embedding_layer_weight = model.embedder.encoder.get_input_embeddings().weight
+            embedding_layer_weight = embedder.encoder.get_input_embeddings().weight
             embedding_layer_weight = cast(torch.nn.Parameter, embedding_layer_weight)
             embedding_layer_weight.requires_grad = True
             embedding_layer_weight.register_hook(hook)
         return model
 
-    def apply_dataset(self, dataset: FinetuneDataset):
-        return PrefixFinetuneDataset(dataset=dataset.dataset, prefix=self.prefix, record_type=dataset.record_type)
+    def apply_dataset(self, dataset: FinetuneDataset | FinetuneIterableDataset):
+        if isinstance(dataset, FinetuneDataset):
+            return PrefixFinetuneDataset(dataset=dataset.dataset, prefix=self.prefix, record_type=dataset.record_type)
+        else:
+            return PrefixFinetuneIterableDataset(dataset=dataset.dataset, prefix=self.prefix, record_type=dataset.record_type)

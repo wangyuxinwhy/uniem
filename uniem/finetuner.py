@@ -1,92 +1,141 @@
 import logging
 import os
 from pathlib import Path
-from typing import Sequence, cast
+from typing import Any, Iterable, Sequence, Sized, cast
 
+import torch
 from accelerate import Accelerator
 from accelerate.tracking import GeneralTracker
 from accelerate.utils import LoggerType, ProjectConfiguration, set_seed
 from datasets import Dataset as HFDataset
-from datasets import DatasetDict as HFDatasetDict
+from datasets import IterableDataset as HFIterableDataset
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup  # type: ignore
 
 from uniem.data import (
     FinetuneDataset,
+    FinetuneIterableDataset,
     PairCollator,
     ScoredPairCollator,
     TripletCollator,
 )
 from uniem.data_structures import RecordType, infer_record_type
 from uniem.model import (
+    AutoEmbedder,
+    Embedder,
+    UniemEmbedder,
     EmbedderForPairInBatchNegTrain,
     EmbedderForScoredPairTrain,
     EmbedderForTrain,
     EmbedderForTripletInBatchNegTrain,
     InBatchNegLossType,
-    PoolingStrategy,
 )
 from uniem.trainer import Trainer
 from uniem.training_strategy import FullParametersTraining, PrefixTraining, TrainingStrategy
-from uniem.types import MixedPrecisionType
+from uniem.types import MixedPrecisionType, ModelType, Tokenizer
 from uniem.utils import create_adamw_optimizer, find_executable_batch_size, split_dataset_dict
 
 logger = logging.getLogger(__name__)
-RawDataset = Sequence[dict] | dict[str, Sequence[dict]] | HFDatasetDict | HFDataset
+MapStyleDataset = Sequence[dict] | HFDataset
+IterableStyleDataset = Iterable[dict] | HFIterableDataset
+SupportedDataset = MapStyleDataset | IterableStyleDataset
+SupportedDatasetDict = dict[str, SupportedDataset]
 
 
-def suggest_lr(model_name: str) -> float:
-    default_lr = 3e-5
-    if 'm3e-small' in model_name:
-        lr = 1e-4
-    elif 'm3e-base' in model_name:
-        lr = 5e-5
-    elif 'm3e-large' in model_name:
-        lr = 8e-6
+def suggest_lr(model: torch.nn.Module) -> float:
+    num_training_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    if num_training_params <= 80_000_000:
+        return 1e-4
+    elif num_training_params <= 200_000_000:
+        return 5e-5
     else:
-        lr = default_lr
-    logger.info(f'Suggested learning rate: {lr}')
-    return lr
+        return 8e-6
 
 
 class FineTuner:
+    accelerator: Accelerator
+
     def __init__(
         self,
-        model_name_or_path: str,
-        dataset: RawDataset,
-        model_class: str | None = None,
+        embedder: Embedder,
+        tokenizer: Tokenizer,
+        dataset: SupportedDatasetDict | SupportedDataset,
         record_type: RecordType | str | None = None,
+        model_type: ModelType | str | None = None,
     ):
-        self.model_name_or_path = model_name_or_path
+        self.embedder = embedder
+        self.tokenizer = tokenizer
         self.raw_dataset = dataset
         if isinstance(self.raw_dataset, dict):
+            raw_dataset = cast(SupportedDatasetDict, self.raw_dataset)
             (
                 self.raw_train_dataset,
                 self.raw_validation_dataset,
-            ) = split_dataset_dict(self.raw_dataset)
+            ) = split_dataset_dict(raw_dataset)
         else:
             self.raw_train_dataset = self.raw_dataset
             self.raw_validation_dataset = None
 
         record_type = RecordType(record_type) if isinstance(record_type, str) else record_type
-        self.record_type = record_type or infer_record_type(self.raw_train_dataset[0])
-        self.model_class = model_class
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path)
+        self.record_type = record_type or infer_record_type(next(iter(self.raw_train_dataset)))
+        self.model_type = ModelType(model_type) if model_type is not None else None
+
+    @classmethod
+    def from_pretrained(
+        cls,
+        model_name_or_path: str,
+        dataset: SupportedDatasetDict | SupportedDataset,
+        model_type: ModelType | str = ModelType.uniem,
+        record_type: RecordType | str | None = None,
+    ):
+        model_type = ModelType(model_type)
+
+        match model_type:
+            case ModelType.uniem:
+                embedder = AutoEmbedder.from_pretrained(model_name_or_path)
+                tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+            case ModelType.sentence_transformers:
+                try:
+                    from uniem.integration.sentence_transformers_wrapper import SentenceTransformerWrapper
+
+                    embedder = SentenceTransformerWrapper(model_name_or_path)   # type: ignore
+                    tokenizer = embedder.tokenizer
+                    tokenizer = cast(Tokenizer, tokenizer)
+                except ImportError:
+                    raise ImportError('can not find sentence_transformers, pip install sentence_transformers')
+            case _:
+                raise ValueError(f'Unknown model type: {model_type}')
+
+        return cls(embedder=embedder, tokenizer=tokenizer, dataset=dataset, record_type=record_type, model_type=model_type)
 
     def create_finetune_datasets(
         self,
-    ) -> tuple[FinetuneDataset, FinetuneDataset | None]:
-        train_dataset = FinetuneDataset(self.raw_train_dataset)
-        validation_dataset = FinetuneDataset(self.raw_validation_dataset) if self.raw_validation_dataset is not None else None
+    ) -> tuple[FinetuneDataset | FinetuneIterableDataset, FinetuneDataset | FinetuneIterableDataset | None]:
+        if not isinstance(self.raw_train_dataset, Sized):
+            raw_train_dataset = cast(IterableStyleDataset, self.raw_train_dataset)
+            train_dataset = FinetuneIterableDataset(raw_train_dataset, record_type=self.record_type)
+        else:
+            train_dataset = FinetuneDataset(self.raw_train_dataset, record_type=self.record_type)
+
+        if self.raw_validation_dataset is None:
+            validation_dataset = None
+        elif not isinstance(self.raw_validation_dataset, Sized):
+            raw_validation_dataset = cast(IterableStyleDataset, self.raw_validation_dataset)
+            validation_dataset = FinetuneIterableDataset(raw_validation_dataset, record_type=self.record_type)
+        else:
+            validation_dataset = FinetuneDataset(self.raw_validation_dataset, record_type=self.record_type)
+
         return train_dataset, validation_dataset
 
     def create_dataloaders(
         self,
-        train_dataset: FinetuneDataset,
-        validation_dataset: FinetuneDataset | None,
+        train_dataset: FinetuneDataset | FinetuneIterableDataset,
+        validation_dataset: FinetuneDataset | FinetuneIterableDataset | None,
         batch_size: int = 64,
         num_workers: int = 0,
         drop_last: bool = False,
+        shuffle: bool = False,
         max_length: int | None = None,
     ) -> tuple[DataLoader, DataLoader | None]:
 
@@ -100,11 +149,15 @@ class FineTuner:
             case _:
                 raise ValueError('Only supports pair, triplet and scored pair record.')
 
+        if not isinstance(train_dataset, Sized) and shuffle:
+            shuffle = False
+            self.accelerator.print('Disable shuffle for iterable dataset')
+
         train_dataloader = DataLoader(
             train_dataset,
             batch_size=batch_size,
             collate_fn=data_collator,
-            shuffle=True,
+            shuffle=shuffle,
             num_workers=num_workers,
             pin_memory=True,
             drop_last=drop_last,
@@ -124,35 +177,24 @@ class FineTuner:
             validation_dataloader = None
         return train_dataloader, validation_dataloader
 
-    def create_finetune_model(
-        self,
-        temperature: float = 0.05,
-        pooling_strategy: PoolingStrategy = PoolingStrategy.last_mean,
-        model_class: str | None = None,
-    ) -> EmbedderForTrain:
+    def create_embedder_for_train(self, temperature: float = 0.05) -> EmbedderForTrain:
         match self.record_type:
             case RecordType.PAIR:
                 model = EmbedderForPairInBatchNegTrain(
-                    model_name_or_path=self.model_name_or_path,
-                    model_class=model_class,
+                    embedder=self.embedder,
                     temperature=temperature,
                     loss_type=InBatchNegLossType.softmax,
-                    pooling_strategy=pooling_strategy,
                 )
             case RecordType.TRIPLET:
                 model = EmbedderForTripletInBatchNegTrain(
-                    model_name_or_path=self.model_name_or_path,
-                    model_class=model_class,
+                    embedder=self.embedder,
                     temperature=temperature,
                     loss_type=InBatchNegLossType.softmax,
-                    pooling_strategy=pooling_strategy,
                 )
             case RecordType.SCORED_PAIR:
                 model = EmbedderForScoredPairTrain(
-                    model_name_or_path=self.model_name_or_path,
-                    model_class=model_class,
+                    embedder=self.embedder,
                     temperature=temperature,
-                    pooling_strategy=pooling_strategy,
                 )
         return model
 
@@ -161,16 +203,16 @@ class FineTuner:
         self,
         # Model
         temperature: float = 0.05,
-        pooling_strategy: PoolingStrategy = PoolingStrategy.last_mean,
         training_strategy: TrainingStrategy = FullParametersTraining(),
         # Optimizer
         lr: float | None = None,
         weight_decay: float = 1e-3,
-        num_warmup_steps: float = 0.05,
+        num_warmup_steps: float | None = None,
         # Data
         batch_size: int = 256,
         max_length: int = 512,
         drop_last: bool = False,
+        shuffle: bool = False,
         # Trainer
         epochs: int = 3,
         mixed_precision: MixedPrecisionType = MixedPrecisionType.no,
@@ -199,6 +241,7 @@ class FineTuner:
             project_config=project_config,
             log_with=log_with,
         )
+        self.accelerator = accelerator
         accelerator.init_trackers('uniem')
 
         set_seed(seed)
@@ -218,33 +261,36 @@ class FineTuner:
             validation_dataset=validation_dataset,
             batch_size=batch_size,
             drop_last=drop_last,
+            shuffle=shuffle,
             max_length=max_length,
             num_workers=num_workers,
         )
         train_dataloader = accelerator.prepare(train_dataloader)
         validation_dataloader = accelerator.prepare(validation_dataloader) if validation_dataloader is not None else None
 
-        model = self.create_finetune_model(
-            temperature=temperature, pooling_strategy=pooling_strategy, model_class=self.model_class
-        )
+        model = self.create_embedder_for_train(temperature=temperature)
         model = training_strategy.apply_model(model)
-        model.embedder.encoder.config.pad_token_id = self.tokenizer.pad_token_id
         model = accelerator.prepare(model)
 
         # Optimizer & LRScheduler
-        lr = lr or suggest_lr(self.model_name_or_path)
+        lr = lr or suggest_lr(self.embedder)  # type: ignore
+        accelerator.print(f'Learning rate: {lr}')
         optimizer = create_adamw_optimizer(model, lr=lr, weight_decay=weight_decay)
-        total_steps = len(train_dataloader) * epochs
-        if num_warmup_steps <= 0:
+
+        if num_warmup_steps is None:
             lr_scheduler = None
         else:
-            if num_warmup_steps < 1:
-                num_warmup_steps = int(num_warmup_steps * total_steps)
-            lr_scheduler = get_cosine_schedule_with_warmup(
-                optimizer=optimizer,
-                num_warmup_steps=int(num_warmup_steps),
-                num_training_steps=total_steps,
-            )
+            if isinstance(train_dataloader.dataset, HFIterableDataset):
+                lr_scheduler = None
+            else:
+                total_steps = len(train_dataloader) * epochs
+                if num_warmup_steps < 1:
+                    num_warmup_steps = int(num_warmup_steps * total_steps)
+                lr_scheduler = get_cosine_schedule_with_warmup(
+                    optimizer=optimizer,
+                    num_warmup_steps=int(num_warmup_steps),
+                    num_training_steps=total_steps,
+                )
         optimizer, lr_scheduler = accelerator.prepare(optimizer, lr_scheduler)
 
         # Trainer
@@ -265,8 +311,27 @@ class FineTuner:
         accelerator.wait_for_everyone()
         accelerator.print('Training finished')
 
-        accelerator.print('Saving model')
+        if self.model_type is not None:
+            save_dir = output_dir / 'model'
+            self.save_pretrained(save_dir)
+            accelerator.print(f'Saving model to {save_dir}')
         unwrapped_model = cast(EmbedderForTrain, accelerator.unwrap_model(model))
+        embedder = unwrapped_model.embedder
+        return embedder
 
-        unwrapped_model.embedder.save_pretrained(output_dir / 'model')
-        self.tokenizer.save_pretrained(output_dir / 'model')
+    def save_pretrained(self, output_dir: Path | str):
+        output_dir = Path(output_dir)
+        match self.model_type:
+            case ModelType.uniem:
+                embedder = cast(UniemEmbedder, self.embedder)
+                embedder.save_pretrained(output_dir)
+                self.tokenizer.save_pretrained(output_dir)
+            case ModelType.sentence_transformers:
+                from sentence_transformers import SentenceTransformer
+                
+                embedder = cast(SentenceTransformer, self.embedder)
+                embedder.save(str(output_dir))
+            case None:
+                raise ValueError('model_type is not set, can not save pretrained model') 
+            case _:
+                raise ValueError(f'Unknown model type: {self.model_type}')

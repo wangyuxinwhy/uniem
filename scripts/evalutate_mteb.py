@@ -5,7 +5,7 @@ import os
 
 import typer
 from mteb import MTEB
-from uniem import UniEmbedder
+from uniem import Uniem
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 logging.basicConfig(level=logging.INFO)
@@ -109,7 +109,7 @@ TASK_LIST = (
 
 def evaluate(uniem_model_name_or_path: str, output_dir: str | None = None):
 
-    model = UniEmbedder.from_pretrained(uniem_model_name_or_path)
+    model = Uniem.from_pretrained(uniem_model_name_or_path)
     output_dir = output_dir or f'results/{uniem_model_name_or_path.split("/")[-1]}'
 
     for task in TASK_LIST:

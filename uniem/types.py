@@ -15,6 +15,12 @@ class MixedPrecisionType(str, Enum):
     no = 'no'
 
 
+class ModelType(str, Enum):
+    uniem = 'uniem'
+    sentence_transformers = 'sentence_transformers'
+    custom = 'custom'
+
+
 @dataclass
 class DatasetDescription:
     name: str

@@ -7,8 +7,9 @@ from uniem.model import (
     FirstLastEmbedder,
     LastMeanEmbedder,
     LastWeightedEmbedder,
-    UniEmbedder,
-    creat_attention_mask_from_input_ids,
+    Uniem,
+    create_attention_mask_from_input_ids,
+    create_uniem_embedder,
     mean_pooling,
 )
 
@@ -24,7 +25,7 @@ def test_creat_mask_from_input_ids():
         dtype=torch.long,
     )
 
-    mask = creat_attention_mask_from_input_ids(input_ids, 0)
+    mask = create_attention_mask_from_input_ids(input_ids, 0)
 
     assert torch.equal(
         mask,
@@ -71,12 +72,12 @@ def test_mean_pooling():
 @pytest.mark.parametrize('loss_type', ['softmax', 'sigmoid', 'cosent'])
 def test_uniem_triplet_model(loss_type: str):
     model1 = EmbedderForTripletInBatchNegTrain(
-        model_name_or_path=str(FIXTURES_DIR / 'model'),
+        embedder=create_uniem_embedder(model_name_or_path=str(FIXTURES_DIR / 'model')),
         temperature=0.05,
         loss_type=loss_type,
     )
     model2 = EmbedderForTripletInBatchNegTrain(
-        model_name_or_path=str(FIXTURES_DIR / 'model'),
+        embedder=create_uniem_embedder(model_name_or_path=str(FIXTURES_DIR / 'model')),
         temperature=0.05,
         loss_type=loss_type,
     )
@@ -121,8 +122,9 @@ def test_uniem_triplet_model(loss_type: str):
 
 @pytest.mark.parametrize('loss_type', ['softmax', 'sigmoid', 'cosent'])
 def test_uniem_pair_model(loss_type: str):
+    embedder = create_uniem_embedder(model_name_or_path=str(FIXTURES_DIR / 'model'))
     model = EmbedderForPairInBatchNegTrain(
-        model_name_or_path=str(FIXTURES_DIR / 'model'),
+        embedder=embedder,
         temperature=0.05,
         loss_type=loss_type,
     )
@@ -180,7 +182,7 @@ def test_auto_embedder(transformers_model, tmpdir, embedder_cls):
 
 
 def test_uni_embedder():
-    uni_embdder = UniEmbedder.from_pretrained(str(FIXTURES_DIR / 'model'))
+    uni_embdder = Uniem.from_pretrained(str(FIXTURES_DIR / 'model'))
     sentences = ['祖国万岁', 'Long live the motherland', '祖国万岁']
 
     embeddings = uni_embdder.encode(sentences)

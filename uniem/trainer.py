@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Sized
 
 import torch
 from accelerate import Accelerator
@@ -37,7 +37,11 @@ class Trainer:
 
         self.train_loss_tracker = LossTracker()
         self.validation_loss_tracker = LossTracker()
-        self.progress_bar = DistributedTqdmProgressBar(self.epochs, len(self.train_dataloader))
+        if isinstance(self.train_dataloader.dataset, Sized):
+            num_steps_per_epoch = len(self.train_dataloader)
+        else:
+            num_steps_per_epoch = None
+        self.progress_bar = DistributedTqdmProgressBar(self.epochs, num_steps_per_epoch=num_steps_per_epoch)
         self.epoch_end_callbacks = epoch_end_callbacks or []
         self.current_step = 0
 
@@ -125,7 +129,7 @@ class DummyProgressBar:
 
 
 class DistributedTqdmProgressBar:
-    def __init__(self, epochs: int, num_steps_per_epoch: int, **kwargs) -> None:
+    def __init__(self, epochs: int, num_steps_per_epoch: int | None, **kwargs) -> None:
         self.accelerator = Accelerator()
         self.epochs = epochs
         self.current_epoch = 1

@@ -1,7 +1,7 @@
 import importlib
 from enum import Enum
 from pathlib import Path
-from typing import ClassVar, Literal, Type, TypeVar, cast
+from typing import ClassVar, Literal, Protocol, Type, TypeVar, cast
 
 import numpy as np
 import torch
@@ -18,7 +18,7 @@ from uniem.criteria import (
     TripletInBatchNegSoftmaxContrastLoss,
 )
 from uniem.types import Tokenizer
-from uniem.utils import generate_batch
+from uniem.utils import generate_batch, create_attention_mask_from_input_ids
 
 T = TypeVar('T')
 
@@ -37,10 +37,6 @@ class InBatchNegLossType(str, Enum):
     cosent = 'cosent'
 
 
-def creat_attention_mask_from_input_ids(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
-    return input_ids != pad_token_id
-
-
 def mean_pooling(hidden_state: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
     if attention_mask is None:
         return torch.mean(hidden_state, dim=1)
@@ -53,6 +49,13 @@ def load_hf_pretrained_model(
 ) -> PreTrainedModel:
     if model_class is None:
         model_class = AutoModel
+    elif model_class in {'sentence_transformers', 'SentenceTransformer'}:
+        try:
+            from sentence_transformers import SentenceTransformer
+
+            return SentenceTransformer(model_name_or_path)   # type: ignore
+        except ImportError:
+            raise ImportError('can not find sentence_transformers, pip install sentence_transformers')
     elif isinstance(model_class, str):
         transformers_module = importlib.import_module('transformers')
         model_class = getattr(transformers_module, model_class)
@@ -62,10 +65,15 @@ def load_hf_pretrained_model(
     return model
 
 
-StrategyEmbedderClsMap: dict[PoolingStrategy, Type['Embedder']] = {}
+StrategyEmbedderClsMap: dict[PoolingStrategy, Type['UniemEmbedder']] = {}
 
 
-class Embedder(torch.nn.Module):
+class Embedder(Protocol):
+    def __call__(self, input_ids: torch.Tensor, **kwargs) -> torch.Tensor:
+        ...
+
+
+class UniemEmbedder(torch.nn.Module, Embedder):
     pooling_strategy: ClassVar[PoolingStrategy]
 
     def __init__(self, encoder: PreTrainedModel, pad_token_id: int | None = None):
@@ -100,33 +108,33 @@ class Embedder(torch.nn.Module):
         return self.encoder.config.max_position_embeddings
 
 
-class LastMeanEmbedder(Embedder):
+class LastMeanEmbedder(UniemEmbedder):
     pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.last_mean
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         if attention_mask is None:
-            attention_mask = creat_attention_mask_from_input_ids(input_ids, self.pad_token_id)
+            attention_mask = create_attention_mask_from_input_ids(input_ids, self.pad_token_id)
         embeddings = self.encoder(input_ids, attention_mask=attention_mask).last_hidden_state
         embeddings = mean_pooling(embeddings, attention_mask)
         return embeddings
 
 
-class ClsEmbedder(Embedder):
+class ClsEmbedder(UniemEmbedder):
     pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.cls
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         if attention_mask is None:
-            attention_mask = creat_attention_mask_from_input_ids(input_ids, self.pad_token_id)
+            attention_mask = create_attention_mask_from_input_ids(input_ids, self.pad_token_id)
         embeddings = self.encoder(input_ids, attention_mask=attention_mask).last_hidden_state[:, 0]
         return embeddings
 
 
-class FirstLastEmbedder(Embedder):
+class FirstLastEmbedder(UniemEmbedder):
     pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.first_last_mean
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         if attention_mask is None:
-            attention_mask = creat_attention_mask_from_input_ids(input_ids, self.pad_token_id)
+            attention_mask = create_attention_mask_from_input_ids(input_ids, self.pad_token_id)
         embeddings = self.encoder(input_ids, attention_mask=attention_mask, output_hidden_states=True).hidden_states
         first_embeddings = mean_pooling(embeddings[0], attention_mask)
         last_embeddings = mean_pooling(embeddings[-1], attention_mask)
@@ -134,7 +142,7 @@ class FirstLastEmbedder(Embedder):
         return embeddings
 
 
-class EmbeddingLastEmbedder(Embedder):
+class EmbeddingLastEmbedder(UniemEmbedder):
     pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.embedding_last_mean
 
     def __init__(self, encoder: PreTrainedModel, pad_token_id: int | None = None):
@@ -143,7 +151,7 @@ class EmbeddingLastEmbedder(Embedder):
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         if attention_mask is None:
-            attention_mask = creat_attention_mask_from_input_ids(input_ids, self.pad_token_id)
+            attention_mask = create_attention_mask_from_input_ids(input_ids, self.pad_token_id)
         static_embeddings = self.embedding_layer(input_ids)
         mean_last_embeddings = mean_pooling(
             self.encoder(input_ids, attention_mask=attention_mask).last_hidden_state, attention_mask
@@ -152,7 +160,7 @@ class EmbeddingLastEmbedder(Embedder):
         return (mean_last_embeddings + mean_static_embeddings) / 2
 
 
-class LastWeightedEmbedder(Embedder):
+class LastWeightedEmbedder(UniemEmbedder):
     pooling_strategy: ClassVar[PoolingStrategy] = PoolingStrategy.last_weighted
 
     def __init__(self, encoder: PreTrainedModel, pad_token_id: int | None = None):
@@ -161,7 +169,7 @@ class LastWeightedEmbedder(Embedder):
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         if attention_mask is None:
-            attention_mask = creat_attention_mask_from_input_ids(input_ids, self.pad_token_id)
+            attention_mask = create_attention_mask_from_input_ids(input_ids, self.pad_token_id)
         weights = (torch.arange(input_ids.shape[1], device=input_ids.device) + 1).float()
         embeddings = self.encoder(input_ids).last_hidden_state
         embeddings = embeddings * attention_mask.unsqueeze(-1).float() * weights.unsqueeze(0).unsqueeze(-1)
@@ -183,38 +191,46 @@ class AutoEmbedder:
         return embedder_cls(encoder)
 
 
+def create_uniem_embedder(
+    model_name_or_path: str,
+    model_class: str | None = None,
+    pooling_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
+):
+    pretrained_model = load_hf_pretrained_model(model_name_or_path, model_class=model_class)
+    embedder_cls = StrategyEmbedderClsMap[PoolingStrategy(pooling_strategy)]
+    embedder = embedder_cls(pretrained_model)
+    return embedder
+
+
 class EmbedderForTrain(torch.nn.Module):
     embedder: Embedder
 
     def __init__(
         self,
-        model_name_or_path: str,
-        model_class: str | None = None,
-        pooling_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
+        embedder: Embedder,
+        criterion: torch.nn.Module,
     ):
         super().__init__()
-        pretrained_model = load_hf_pretrained_model(model_name_or_path, model_class=model_class)
-        self.embedder = StrategyEmbedderClsMap[PoolingStrategy(pooling_strategy)](pretrained_model)
+        self.embedder = embedder
+        self.criterion = criterion
 
 
 class EmbedderForPairInBatchNegTrain(EmbedderForTrain):
     def __init__(
         self,
-        model_name_or_path: str,
-        model_class: str | None = None,
-        pooling_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
+        embedder: Embedder,
         temperature: float = 0.05,
         loss_type: InBatchNegLossType | str = InBatchNegLossType.softmax,
     ):
-        super().__init__(model_name_or_path, model_class, pooling_strategy)
         self.loss_type = InBatchNegLossType(loss_type)
         match self.loss_type:
             case InBatchNegLossType.sigmoid:
-                self.criterion = PairInBatchNegSigmoidContrastLoss(temperature)
+                criterion = PairInBatchNegSigmoidContrastLoss(temperature)
             case InBatchNegLossType.softmax:
-                self.criterion = PairInBatchNegSoftmaxContrastLoss(temperature)
+                criterion = PairInBatchNegSoftmaxContrastLoss(temperature)
             case InBatchNegLossType.cosent:
-                self.criterion = PairInBatchNegCoSentLoss(temperature)
+                criterion = PairInBatchNegCoSentLoss(temperature)
+        super().__init__(embedder, criterion)
 
     def forward(self, text_ids: torch.Tensor, text_pos_ids: torch.Tensor) -> dict[str, torch.Tensor]:
         text_embeddings = self.embedder(text_ids)
@@ -226,22 +242,20 @@ class EmbedderForPairInBatchNegTrain(EmbedderForTrain):
 class EmbedderForTripletInBatchNegTrain(EmbedderForTrain):
     def __init__(
         self,
-        model_name_or_path: str,
-        model_class: str | None = None,
-        pooling_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
+        embedder: Embedder,
         temperature: float = 0.05,
         loss_type: InBatchNegLossType | str = InBatchNegLossType.softmax,
         add_swap_loss: bool = False,
     ):
-        super().__init__(model_name_or_path, model_class, pooling_strategy)
         self.loss_type = InBatchNegLossType(loss_type)
         match self.loss_type:
             case InBatchNegLossType.sigmoid:
-                self.criterion = TripletInBatchNegSigmoidContrastLoss(temperature, add_swap_loss)
+                criterion = TripletInBatchNegSigmoidContrastLoss(temperature, add_swap_loss)
             case InBatchNegLossType.softmax:
-                self.criterion = TripletInBatchNegSoftmaxContrastLoss(temperature, add_swap_loss)
+                criterion = TripletInBatchNegSoftmaxContrastLoss(temperature, add_swap_loss)
             case InBatchNegLossType.cosent:
-                self.criterion = TripletInBatchNegCoSentLoss(temperature, add_swap_loss)
+                criterion = TripletInBatchNegCoSentLoss(temperature, add_swap_loss)
+        super().__init__(embedder, criterion)
 
     def forward(
         self,
@@ -259,13 +273,10 @@ class EmbedderForTripletInBatchNegTrain(EmbedderForTrain):
 class EmbedderForScoredPairTrain(EmbedderForTrain):
     def __init__(
         self,
-        model_name_or_path: str,
-        model_class: str | None = None,
-        pooling_strategy: PoolingStrategy | str = PoolingStrategy.last_mean,
+        embedder: Embedder,
         temperature: float = 0.05,
     ):
-        super().__init__(model_name_or_path, model_class, pooling_strategy)
-        self.criterion = CoSentLoss(temperature)
+        super().__init__(embedder, CoSentLoss(temperature))
 
     def forward(
         self,
@@ -280,12 +291,12 @@ class EmbedderForScoredPairTrain(EmbedderForTrain):
         return {'loss': loss, 'predict_labels': predict_labels}
 
 
-class UniEmbedder:
+class Uniem:
     PROGRESS_BAR_THRESHOLD = 1000
 
     def __init__(
         self,
-        embedder: Embedder,
+        embedder: UniemEmbedder,
         tokenizer: Tokenizer,
         normalize: bool = True,
         max_length: int | None = None,
