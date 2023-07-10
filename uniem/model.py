@@ -18,7 +18,7 @@ from uniem.criteria import (
     TripletInBatchNegSoftmaxContrastLoss,
 )
 from uniem.types import Tokenizer
-from uniem.utils import generate_batch, create_attention_mask_from_input_ids
+from uniem.utils import create_attention_mask_from_input_ids, generate_batch
 
 T = TypeVar('T')
 

@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Iterable, Sequence, Sized, cast
+from typing import Iterable, Sequence, Sized, cast
 
 import torch
 from accelerate import Accelerator
@@ -23,12 +23,12 @@ from uniem.data_structures import RecordType, infer_record_type
 from uniem.model import (
     AutoEmbedder,
     Embedder,
-    UniemEmbedder,
     EmbedderForPairInBatchNegTrain,
     EmbedderForScoredPairTrain,
     EmbedderForTrain,
     EmbedderForTripletInBatchNegTrain,
     InBatchNegLossType,
+    UniemEmbedder,
 )
 from uniem.trainer import Trainer
 from uniem.training_strategy import FullParametersTraining, PrefixTraining, TrainingStrategy
@@ -328,10 +328,10 @@ class FineTuner:
                 self.tokenizer.save_pretrained(output_dir)
             case ModelType.sentence_transformers:
                 from sentence_transformers import SentenceTransformer
-                
+
                 embedder = cast(SentenceTransformer, self.embedder)
                 embedder.save(str(output_dir))
             case None:
-                raise ValueError('model_type is not set, can not save pretrained model') 
+                raise ValueError('model_type is not set, can not save pretrained model')
             case _:
                 raise ValueError(f'Unknown model type: {self.model_type}')
