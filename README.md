@@ -10,7 +10,7 @@ uniem 项目的目标是创建中文最好的通用文本嵌入模型。
 
 ## 🌟 重要更新
 
-- ➿ **2023.07.10** , 发布 uniem 0.3.0， `FineTuner` 除 M3E 外，还支持 `sentence_transformers`, `text2vec` 等模型的微调，同时还支持 [SGPT](https://github.com/Muennighoff/sgpt) 的方式对 GPT 系列模型进行训练。 **FineTuner 初始化的 API 有小小的变化，无法兼容 0.2.0**
+- ➿ **2023.07.11** , 发布 uniem 0.3.0， `FineTuner` 除 M3E 外，还支持 `sentence_transformers`, `text2vec` 等模型的微调，同时还支持 [SGPT](https://github.com/Muennighoff/sgpt) 的方式对 GPT 系列模型进行训练，以及 Prefix Tuning。 **FineTuner 初始化的 API 有小小的变化，无法兼容 0.2.0**
 - ➿ **2023.06.17** , 发布 uniem 0.2.1 ， 实现了 `FineTuner` 以原生支持模型微调，**几行代码，即刻适配**！
 - 📊 **2023.06.17** , 发布 [MTEB-zh](https://github.com/wangyuxinwhy/uniem/tree/main/mteb-zh) 正式版 ， 支持 6 大类 Embedding 模型 ，支持 4 大类任务 ，共 9 种数据集的自动化评测
 - 🎉 **2023.06.08** , 发布 [M3E models](https://huggingface.co/moka-ai/m3e-base) ，在中文文本分类和文本检索上均优于 `openai text-embedding-ada-002`，详请请参考 [M3E models README](https://huggingface.co/moka-ai/m3e-base/blob/main/README.md)。
