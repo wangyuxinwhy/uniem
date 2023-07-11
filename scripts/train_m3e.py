@@ -18,8 +18,9 @@ from uniem.model import (
     create_uniem_embedder,
 )
 from uniem.trainer import Trainer
+from uniem.training_strategy import BitFitTrainging
 from uniem.types import MixedPrecisionType
-from uniem.utils import ConfigFile, apply_bitfit, convert_to_readable_string, create_adamw_optimizer
+from uniem.utils import ConfigFile, convert_number_to_readable_string, create_adamw_optimizer
 
 app = typer.Typer()
 
@@ -128,9 +129,10 @@ def main(
         loss_type=loss_type,
     )
     if bitfit:
-        apply_bitfit(model)
+        model = BitFitTrainging().apply_model(model)
+
     num_training_paramters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    accelerator.print(f'Number of training parameters: {convert_to_readable_string(num_training_paramters)}')
+    accelerator.print(f'Number of training parameters: {convert_number_to_readable_string(num_training_paramters)}')
     embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
     model = accelerator.prepare(model)
 

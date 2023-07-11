@@ -81,6 +81,7 @@ class Trainer:
                     self.validation_loss_tracker,
                 )
                 validation_metrics = self.add_prefix({'loss': validation_loss}, 'validation')
+                self.accelerator.print(f'Epoch {current_epoch} Validation loss: {validation_loss:.4f}')
                 self.accelerator.log(validation_metrics, step=current_epoch)
 
             if self.save_on_epoch_end:

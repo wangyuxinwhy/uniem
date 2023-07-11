@@ -1,13 +1,13 @@
 import pytest
 import torch
 from uniem.model import (
-    AutoEmbedder,
     EmbedderForPairInBatchNegTrain,
     EmbedderForTripletInBatchNegTrain,
     FirstLastEmbedder,
     LastMeanEmbedder,
     LastWeightedEmbedder,
     Uniem,
+    UniemEmbedder,
     create_attention_mask_from_input_ids,
     create_uniem_embedder,
     mean_pooling,
@@ -172,7 +172,7 @@ def test_auto_embedder(transformers_model, tmpdir, embedder_cls):
     embedder = embedder_cls(transformers_model)
 
     embedder.save_pretrained(tmpdir)
-    new_embedder = AutoEmbedder.from_pretrained(tmpdir)
+    new_embedder = UniemEmbedder.from_pretrained(tmpdir)
 
     assert isinstance(new_embedder, embedder_cls)
     assert torch.allclose(

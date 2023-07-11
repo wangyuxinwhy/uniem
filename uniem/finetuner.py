@@ -1,5 +1,6 @@
 import logging
 import os
+from enum import Enum
 from pathlib import Path
 from typing import Iterable, Sequence, Sized, cast
 
@@ -21,7 +22,6 @@ from uniem.data import (
 )
 from uniem.data_structures import RecordType, infer_record_type
 from uniem.model import (
-    AutoEmbedder,
     Embedder,
     EmbedderForPairInBatchNegTrain,
     EmbedderForScoredPairTrain,
@@ -33,7 +33,7 @@ from uniem.model import (
 )
 from uniem.trainer import Trainer
 from uniem.training_strategy import FullParametersTraining, PrefixTraining, TrainingStrategy
-from uniem.types import MixedPrecisionType, ModelType, Tokenizer
+from uniem.types import MixedPrecisionType, Tokenizer
 from uniem.utils import create_adamw_optimizer, find_executable_batch_size, split_dataset_dict
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,14 @@ MapStyleDataset = Sequence[dict] | HFDataset
 IterableStyleDataset = Iterable[dict] | HFIterableDataset
 SupportedDataset = MapStyleDataset | IterableStyleDataset
 SupportedDatasetDict = dict[str, SupportedDataset]
+
+
+class ModelType(str, Enum):
+    uniem = 'uniem'
+    text2vec = 'text2vec'
+    sentence_transformers = 'sentence_transformers'
+    huggingface = 'huggingface'
+    custom = 'custom'
 
 
 def suggest_lr(model: torch.nn.Module) -> float:
@@ -62,8 +70,8 @@ class FineTuner:
         embedder: Embedder,
         tokenizer: Tokenizer,
         dataset: SupportedDatasetDict | SupportedDataset,
+        model_type: ModelType | str = ModelType.uniem,
         record_type: RecordType | str | None = None,
-        model_type: ModelType | str | None = None,
     ):
         self.embedder = embedder
         self.tokenizer = tokenizer
@@ -80,19 +88,19 @@ class FineTuner:
 
         record_type = RecordType(record_type) if isinstance(record_type, str) else record_type
         self.record_type = record_type or infer_record_type(next(iter(self.raw_train_dataset)))
-        self.model_type = ModelType(model_type) if model_type is not None else None
+        self.model_type = ModelType(model_type)
 
     @classmethod
     def from_pretrained(
         cls,
         model_name_or_path: str,
         dataset: SupportedDatasetDict | SupportedDataset,
-        model_type: ModelType | str = ModelType.auto,
+        model_type: ModelType | str | None = None,
         record_type: RecordType | str | None = None,
     ):
         model_type = ModelType(model_type)
 
-        if model_type is ModelType.auto:
+        if model_type is None:
             if 'sentence-transformers' in model_name_or_path:
                 model_type = ModelType.sentence_transformers
             elif 'text2vec' in model_name_or_path:
@@ -105,7 +113,7 @@ class FineTuner:
 
         match model_type:
             case ModelType.uniem:
-                embedder = AutoEmbedder.from_pretrained(model_name_or_path)
+                embedder = UniemEmbedder.from_pretrained(model_name_or_path)
                 tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
             case ModelType.huggingface | ModelType.text2vec:
                 embedder = create_uniem_embedder(model_name_or_path)
@@ -119,8 +127,8 @@ class FineTuner:
                     tokenizer = cast(Tokenizer, tokenizer)
                 except ImportError:
                     raise ImportError('can not find sentence_transformers, pip install sentence_transformers')
-            case _:
-                raise ValueError(f'Unknown model type: {model_type}')
+            case ModelType.custom:
+                raise ValueError('model_type is custom, you should create embedder by yourself')
 
         return cls(embedder=embedder, tokenizer=tokenizer, dataset=dataset, record_type=record_type, model_type=model_type)
 
@@ -161,8 +169,6 @@ class FineTuner:
                 data_collator = TripletCollator(tokenizer=self.tokenizer, max_length=max_length)
             case RecordType.SCORED_PAIR:
                 data_collator = ScoredPairCollator(tokenizer=self.tokenizer, max_length=max_length)
-            case _:
-                raise ValueError('Only supports pair, triplet and scored pair record.')
 
         if not isinstance(train_dataset, Sized) and shuffle:
             shuffle = False
@@ -326,10 +332,11 @@ class FineTuner:
         accelerator.wait_for_everyone()
         accelerator.print('Training finished')
 
-        if self.model_type is not None:
+        if self.model_type is not ModelType.custom:
             save_dir = output_dir / 'model'
             self.save_pretrained(save_dir)
             accelerator.print(f'Saving model to {save_dir}')
+
         unwrapped_model = cast(EmbedderForTrain, accelerator.unwrap_model(model))
         embedder = unwrapped_model.embedder
         return embedder
@@ -337,7 +344,7 @@ class FineTuner:
     def save_pretrained(self, output_dir: Path | str):
         output_dir = Path(output_dir)
         match self.model_type:
-            case ModelType.uniem:
+            case ModelType.uniem | ModelType.huggingface | ModelType.text2vec:
                 embedder = cast(UniemEmbedder, self.embedder)
                 embedder.save_pretrained(output_dir)
                 self.tokenizer.save_pretrained(output_dir)
@@ -346,7 +353,5 @@ class FineTuner:
 
                 embedder = cast(SentenceTransformer, self.embedder)
                 embedder.save(str(output_dir))
-            case None:
-                raise ValueError('model_type is not set, can not save pretrained model')
-            case _:
-                raise ValueError(f'Unknown model type: {self.model_type}')
+            case ModelType.custom:
+                raise ValueError('model_type is custom, you should save model by yourself')

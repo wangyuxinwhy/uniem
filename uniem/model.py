@@ -1,4 +1,3 @@
-import importlib
 from enum import Enum
 from pathlib import Path
 from typing import ClassVar, Literal, Protocol, Type, TypeVar, cast
@@ -6,7 +5,7 @@ from typing import ClassVar, Literal, Protocol, Type, TypeVar, cast
 import numpy as np
 import torch
 import tqdm
-from transformers import AutoModel, AutoTokenizer, PreTrainedModel  # type: ignore
+from transformers import AutoConfig, AutoTokenizer, PreTrainedModel  # type: ignore
 
 from uniem.criteria import (
     CoSentLoss,
@@ -18,7 +17,7 @@ from uniem.criteria import (
     TripletInBatchNegSoftmaxContrastLoss,
 )
 from uniem.types import Tokenizer
-from uniem.utils import create_attention_mask_from_input_ids, generate_batch
+from uniem.utils import create_attention_mask_from_input_ids, generate_batch, load_hf_pretrained_model
 
 T = TypeVar('T')
 
@@ -42,27 +41,6 @@ def mean_pooling(hidden_state: torch.Tensor, attention_mask: torch.Tensor | None
         return torch.mean(hidden_state, dim=1)
     attention_mask = attention_mask.float()
     return torch.sum(hidden_state * attention_mask.unsqueeze(-1), dim=1) / torch.sum(attention_mask, dim=-1, keepdim=True)
-
-
-def load_hf_pretrained_model(
-    model_name_or_path: str, model_class: str | None | Type[PreTrainedModel] | Type[AutoModel] = None
-) -> PreTrainedModel:
-    if model_class is None:
-        model_class = AutoModel
-    elif model_class in {'sentence_transformers', 'SentenceTransformer'}:
-        try:
-            from sentence_transformers import SentenceTransformer
-
-            return SentenceTransformer(model_name_or_path)   # type: ignore
-        except ImportError:
-            raise ImportError('can not find sentence_transformers, pip install sentence_transformers')
-    elif isinstance(model_class, str):
-        transformers_module = importlib.import_module('transformers')
-        model_class = getattr(transformers_module, model_class)
-
-    model = model_class.from_pretrained(model_name_or_path)  # type: ignore
-    model = cast(PreTrainedModel, model)
-    return model
 
 
 StrategyEmbedderClsMap: dict[PoolingStrategy, Type['UniemEmbedder']] = {}
@@ -100,8 +78,14 @@ class UniemEmbedder(torch.nn.Module, Embedder):
 
     @classmethod
     def from_pretrained(cls, model_name_or_path: str):
-        encoder = load_hf_pretrained_model(model_name_or_path)
-        return cls(encoder)
+        config = AutoConfig.from_pretrained(str(model_name_or_path))
+        if hasattr(config, 'uniem_pooling_strategy'):
+            strategy_string = config.uniem_pooling_strategy
+        elif hasattr(config, 'uniem_embedding_strategy'):
+            strategy_string = config.uniem_embedding_strategy
+        else:
+            raise ValueError('Can not find uniem pooling strategy in config, Model is not trained by UniEmbedder.')
+        return create_uniem_embedder(str(model_name_or_path), pooling_strategy=strategy_string)
 
     @property
     def max_length(self):
@@ -175,20 +159,6 @@ class LastWeightedEmbedder(UniemEmbedder):
         embeddings = embeddings * attention_mask.unsqueeze(-1).float() * weights.unsqueeze(0).unsqueeze(-1)
         embeddings = torch.sum(embeddings, dim=1) / torch.sum(weights * attention_mask, dim=-1, keepdim=True)
         return embeddings
-
-
-class AutoEmbedder:
-    @classmethod
-    def from_pretrained(cls, model_name_or_path: str | Path):
-        encoder = load_hf_pretrained_model(str(model_name_or_path))
-        if hasattr(encoder.config, 'uniem_pooling_strategy'):
-            strategy_string = encoder.config.uniem_pooling_strategy
-        elif hasattr(encoder.config, 'uniem_embedding_strategy'):
-            strategy_string = encoder.config.uniem_embedding_strategy
-        else:
-            raise ValueError('Can not find uniem pooling strategy in config, Model is not trained by UniEmbedder.')
-        embedder_cls = StrategyEmbedderClsMap[PoolingStrategy(strategy_string)]
-        return embedder_cls(encoder)
 
 
 def create_uniem_embedder(
@@ -363,9 +333,9 @@ class Uniem:
 
     @classmethod
     def from_pretrained(cls, model_name_or_path: str, **kwargs):
-        encoder = AutoEmbedder.from_pretrained(model_name_or_path)
+        embedder = UniemEmbedder.from_pretrained(model_name_or_path)
         tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-        return cls(encoder, tokenizer, **kwargs)
+        return cls(embedder, tokenizer, **kwargs)
 
     def save_pretrained(self, ouptut_dir: str):
         self.embedder.save_pretrained(ouptut_dir)
