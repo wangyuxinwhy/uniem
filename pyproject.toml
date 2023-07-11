@@ -25,6 +25,7 @@ pyright = "^1.1.314"
 mteb = "^1.0.2"
 openai = "^0.27.8"
 sentence-transformers = "^2.2.2"
+text2vec = "^1.2.1"
 
 [tool.ruff]
 line-length = 128

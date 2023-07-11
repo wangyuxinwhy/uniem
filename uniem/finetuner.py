@@ -29,6 +29,7 @@ from uniem.model import (
     EmbedderForTripletInBatchNegTrain,
     InBatchNegLossType,
     UniemEmbedder,
+    create_uniem_embedder,
 )
 from uniem.trainer import Trainer
 from uniem.training_strategy import FullParametersTraining, PrefixTraining, TrainingStrategy
@@ -86,14 +87,28 @@ class FineTuner:
         cls,
         model_name_or_path: str,
         dataset: SupportedDatasetDict | SupportedDataset,
-        model_type: ModelType | str = ModelType.uniem,
+        model_type: ModelType | str = ModelType.auto,
         record_type: RecordType | str | None = None,
     ):
         model_type = ModelType(model_type)
 
+        if model_type is ModelType.auto:
+            if 'sentence-transformers' in model_name_or_path:
+                model_type = ModelType.sentence_transformers
+            elif 'text2vec' in model_name_or_path:
+                model_type = ModelType.text2vec
+            elif 'm3e' in model_name_or_path:
+                model_type = ModelType.uniem
+            else:
+                model_type = ModelType.huggingface
+            logger.info(f'Auto detect model type: {model_type}')
+
         match model_type:
             case ModelType.uniem:
                 embedder = AutoEmbedder.from_pretrained(model_name_or_path)
+                tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+            case ModelType.huggingface | ModelType.text2vec:
+                embedder = create_uniem_embedder(model_name_or_path)
                 tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
             case ModelType.sentence_transformers:
                 try:

@@ -16,8 +16,11 @@ class MixedPrecisionType(str, Enum):
 
 
 class ModelType(str, Enum):
+    auto = 'auto'
     uniem = 'uniem'
+    text2vec = 'text2vec'
     sentence_transformers = 'sentence_transformers'
+    huggingface = 'huggingface'
     custom = 'custom'
 
 

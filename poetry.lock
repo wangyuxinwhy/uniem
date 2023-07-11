@@ -583,6 +583,50 @@ ssh = ["paramiko"]
 tqdm = ["tqdm"]
 
 [[package]]
+name = "gensim"
+version = "4.3.1"
+description = "Python framework for fast Vector Space Modelling"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "gensim-4.3.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:adf32a4e131dd7f448eb224b4cde7ef3ae0f6f601b482cfca9d1ae2923c2fe9f"},
+    {file = "gensim-4.3.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:64c0e7104e1b421cb718ec7a79f7d4d26deba4c194785e133fa2dec75d2ba614"},
+    {file = "gensim-4.3.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:14e429352ad80c075c6ce16a43e5010abaf4b7e021c84b84d88b0461924a1836"},
+    {file = "gensim-4.3.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e93244c50a58c3e08a0f6ee8d552dadd77296f2eac62ff8cc9ef296aa905d734"},
+    {file = "gensim-4.3.1-cp310-cp310-win_amd64.whl", hash = "sha256:9a6e9a51fdf1dccf6b6d035b38efdef703b93aff10d6f4112c4e91a182136a74"},
+    {file = "gensim-4.3.1-cp310-cp310-win_arm64.whl", hash = "sha256:563c184a8c26b92059273fe53561e91953da7d8b3ab292d703431cf807f36342"},
+    {file = "gensim-4.3.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:e924e972fabd8a09fe3f06e732b7e05a51c2cb3010871c205717e949bbb05cf4"},
+    {file = "gensim-4.3.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:57c3af9e2834c1c9ca12f981b5ab615505e2d6b69f4d4963ccbf5d2cec583a6e"},
+    {file = "gensim-4.3.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:55f837bdab49fea1f4151a3d3882d0d04ee9a964bb654a7c868a856ca86fbf20"},
+    {file = "gensim-4.3.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:56b24c3a506c4acdc131326377e04d378dc72a6120f3d2de234ebdfbfda58305"},
+    {file = "gensim-4.3.1-cp311-cp311-win_amd64.whl", hash = "sha256:5a4b55f5d88a7d445d6dcb94316ab43005844da7dfefc0a592a96f3d06ea0905"},
+    {file = "gensim-4.3.1-cp311-cp311-win_arm64.whl", hash = "sha256:e04ab4f2d55bebaca7cec291ac182618be0ef52c8bf36453f69de8d5256c2182"},
+    {file = "gensim-4.3.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:840a858035029e1f85a6e5ae90ef1d7def1e594677af94722bd0a0eb21a710f3"},
+    {file = "gensim-4.3.1-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:ad4364ca6fddb03438aaaa377927a76832a28a53b9f7ebaf4c2a7e42dc4ed5c1"},
+    {file = "gensim-4.3.1-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ce58a7d9f7a501d670bc2335059f4c1e22800ad12fd968733d12d0565aa49b26"},
+    {file = "gensim-4.3.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f183702cf2c3e36a2441236b6e3144d934255307359ef8eee3ac099041400806"},
+    {file = "gensim-4.3.1-cp38-cp38-win_amd64.whl", hash = "sha256:c193da0e6a0cdba0ddc0bfd53cb25bbbbdbbbd09305ac4924f2746bc07a97d29"},
+    {file = "gensim-4.3.1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:00e652c6df1fb92adf909f6a6b9015ca1eae23e3aa36565449ec34a6008e4d18"},
+    {file = "gensim-4.3.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:b6ea3a726b53d2d229bf171f1aecebb5b1bd7f24192c1cfd3ca571e1d248ab86"},
+    {file = "gensim-4.3.1-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6098f4edb4148d56e815f58eae7a7fd57e0b832d5602b9e7637a5c1d740da30f"},
+    {file = "gensim-4.3.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d3ef3e9272de44e6c35c69b5a19c2e306a3c0094db1de9b2547d35b90d1cbe19"},
+    {file = "gensim-4.3.1-cp39-cp39-win_amd64.whl", hash = "sha256:c3f92470f9d5128633fac6bc9686ac4c1c6ca7b2ffdef825669901f002567ea9"},
+    {file = "gensim-4.3.1-cp39-cp39-win_arm64.whl", hash = "sha256:28a7d31df1cd6ad2f676d48f7e193547f593bee5f0924ae75c1de3eede96b2f2"},
+    {file = "gensim-4.3.1.tar.gz", hash = "sha256:8b5f11c0e6a5308086b48e8f6841223a4fa1a37d513684612b7ee854b533015f"},
+]
+
+[package.dependencies]
+numpy = ">=1.18.5"
+scipy = ">=1.7.0"
+smart-open = ">=1.8.1"
+
+[package.extras]
+distributed = ["Pyro4 (>=4.27)"]
+docs = ["POT", "Pyro4", "Pyro4 (>=4.27)", "annoy", "cython", "matplotlib", "memory-profiler", "mock", "nltk", "pandas", "pytest", "pytest-cov", "sphinx (==5.1.1)", "sphinx-gallery (==0.11.1)", "sphinxcontrib-napoleon (==0.7)", "sphinxcontrib.programoutput (==0.17)", "statsmodels", "testfixtures", "visdom (>=0.1.8,!=0.1.8.7)"]
+test = ["POT", "cython", "mock", "pytest", "pytest-cov", "testfixtures", "visdom (>=0.1.8,!=0.1.8.7)"]
+test-win = ["POT", "cython", "mock", "pytest", "pytest-cov", "testfixtures"]
+
+[[package]]
 name = "huggingface-hub"
 version = "0.15.1"
 description = "Client library to download and publish models, datasets and other repos on the huggingface.co hub"
@@ -653,6 +697,16 @@ plugins = ["setuptools"]
 requirements-deprecated-finder = ["pip-api", "pipreqs"]
 
 [[package]]
+name = "jieba"
+version = "0.42.1"
+description = "Chinese Words Segmentation Utilities"
+optional = false
+python-versions = "*"
+files = [
+    {file = "jieba-0.42.1.tar.gz", hash = "sha256:055ca12f62674fafed09427f176506079bc135638a14e23e25be909131928db2"},
+]
+
+[[package]]
 name = "jinja2"
 version = "3.1.2"
 description = "A very fast and expressive template engine."
@@ -693,6 +747,24 @@ files = [
 
 [package.dependencies]
 attrs = ">=19.2.0"
+
+[[package]]
+name = "loguru"
+version = "0.7.0"
+description = "Python logging made (stupidly) simple"
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "loguru-0.7.0-py3-none-any.whl", hash = "sha256:b93aa30099fa6860d4727f1b81f8718e965bb96253fa190fab2077aaad6d15d3"},
+    {file = "loguru-0.7.0.tar.gz", hash = "sha256:1612053ced6ae84d7959dd7d5e431a0532642237ec21f7fd83ac73fe539e03e1"},
+]
+
+[package.dependencies]
+colorama = {version = ">=0.3.4", markers = "sys_platform == \"win32\""}
+win32-setctime = {version = ">=1.0.0", markers = "sys_platform == \"win32\""}
+
+[package.extras]
+dev = ["Sphinx (==5.3.0)", "colorama (==0.4.5)", "colorama (==0.4.6)", "freezegun (==1.1.0)", "freezegun (==1.2.2)", "mypy (==v0.910)", "mypy (==v0.971)", "mypy (==v0.990)", "pre-commit (==3.2.1)", "pytest (==6.1.2)", "pytest (==7.2.1)", "pytest-cov (==2.12.1)", "pytest-cov (==4.0.0)", "pytest-mypy-plugins (==1.10.1)", "pytest-mypy-plugins (==1.9.3)", "sphinx-autobuild (==2021.3.14)", "sphinx-rtd-theme (==1.2.0)", "tox (==3.27.1)", "tox (==4.4.6)"]
 
 [[package]]
 name = "markdown-it-py"
@@ -1902,6 +1974,27 @@ files = [
 ]
 
 [[package]]
+name = "smart-open"
+version = "6.3.0"
+description = "Utils for streaming large files (S3, HDFS, GCS, Azure Blob Storage, gzip, bz2...)"
+optional = false
+python-versions = ">=3.6,<4.0"
+files = [
+    {file = "smart_open-6.3.0-py3-none-any.whl", hash = "sha256:b4c9ae193ad6d3e7add50944b86afa0d150bd821ab8ec21edb26d9a06b66f6a8"},
+    {file = "smart_open-6.3.0.tar.gz", hash = "sha256:d5238825fe9a9340645fac3d75b287c08fbb99fb2b422477de781c9f5f09e019"},
+]
+
+[package.extras]
+all = ["azure-common", "azure-core", "azure-storage-blob", "boto3", "google-cloud-storage (>=2.6.0)", "paramiko", "requests"]
+azure = ["azure-common", "azure-core", "azure-storage-blob"]
+gcs = ["google-cloud-storage (>=2.6.0)"]
+http = ["requests"]
+s3 = ["boto3"]
+ssh = ["paramiko"]
+test = ["azure-common", "azure-core", "azure-storage-blob", "boto3", "google-cloud-storage (>=2.6.0)", "moto[server]", "paramiko", "pytest", "pytest-rerunfailures", "requests", "responses"]
+webhdfs = ["requests"]
+
+[[package]]
 name = "sympy"
 version = "1.12"
 description = "Computer algebra system (CAS) in Python"
@@ -1914,6 +2007,26 @@ files = [
 
 [package.dependencies]
 mpmath = ">=0.19"
+
+[[package]]
+name = "text2vec"
+version = "1.2.1"
+description = "Text to vector Tool, encode text"
+optional = false
+python-versions = ">=3.6.0"
+files = [
+    {file = "text2vec-1.2.1.tar.gz", hash = "sha256:5c698ef7c3a1f84747f89c7baba515162cf618e03a91d32b7106cb04dda01b7b"},
+]
+
+[package.dependencies]
+datasets = "*"
+gensim = ">=4.0.0"
+jieba = "*"
+loguru = "*"
+pandas = "*"
+scikit-learn = "*"
+tqdm = "*"
+transformers = "*"
 
 [[package]]
 name = "threadpoolctl"
@@ -2221,6 +2334,20 @@ socks = ["pysocks (>=1.5.6,!=1.5.7,<2.0)"]
 zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
+name = "win32-setctime"
+version = "1.1.0"
+description = "A small Python utility to set file creation time on Windows"
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "win32_setctime-1.1.0-py3-none-any.whl", hash = "sha256:231db239e959c2fe7eb1d7dc129f11172354f98361c4fa2d6d2d7e278baa8aad"},
+    {file = "win32_setctime-1.1.0.tar.gz", hash = "sha256:15cf5750465118d6929ae4de4eb46e8edae9a5634350c01ba582df868e932cb2"},
+]
+
+[package.extras]
+dev = ["black (>=19.3b0)", "pytest (>=4.6.2)"]
+
+[[package]]
 name = "xxhash"
 version = "3.2.0"
 description = "Python binding for xxHash"
@@ -2417,4 +2544,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "1705f2b4beb73799bf21a979b8202e1ddc490b805cbeff7228d4f30cfb44fdc5"
+content-hash = "6ed746b4da7326b1ae61c606feb6f430a762c18b61d0997bbcfc9b3e21d44835"
