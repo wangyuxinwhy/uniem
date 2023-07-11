@@ -15,10 +15,12 @@ from uniem.model import (
     EmbedderForTrain,
     InBatchNegLossType,
     PoolingStrategy,
+    create_uniem_embedder,
 )
 from uniem.trainer import Trainer
+from uniem.training_strategy import BitFitTrainging
 from uniem.types import MixedPrecisionType
-from uniem.utils import ConfigFile, apply_bitfit, convert_to_readable_string, create_adamw_optimizer
+from uniem.utils import ConfigFile, convert_number_to_readable_string, create_adamw_optimizer
 
 app = typer.Typer()
 
@@ -50,7 +52,7 @@ def main(
     model_class: Annotated[Optional[str], typer.Option(rich_help_panel='Model')] = None,
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
     loss_type: Annotated[InBatchNegLossType, typer.Option(rich_help_panel='Model')] = InBatchNegLossType.softmax,
-    embedding_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
+    pooling_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
     # Data
     batch_size: Annotated[int, typer.Option(rich_help_panel='Data')] = 32,
     with_instruction: Annotated[bool, typer.Option(rich_help_panel='Data')] = True,
@@ -116,18 +118,22 @@ def main(
     )
     train_dataloader = accelerator.prepare(train_dataloader)
 
-    model = EmbedderForPairInBatchNegTrain(
+    embedder = create_uniem_embedder(
         model_name_or_path=model_name_or_path,
         model_class=model_class,
+        pooling_strategy=pooling_strategy,
+    )
+    model = EmbedderForPairInBatchNegTrain(
+        embedder=embedder,
         temperature=temperature,
         loss_type=loss_type,
-        embedding_strategy=embedding_strategy,
     )
     if bitfit:
-        apply_bitfit(model)
+        model = BitFitTrainging().apply_model(model)
+
     num_training_paramters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    accelerator.print(f'Number of training parameters: {convert_to_readable_string(num_training_paramters)}')
-    model.embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
+    accelerator.print(f'Number of training parameters: {convert_number_to_readable_string(num_training_paramters)}')
+    embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
     model = accelerator.prepare(model)
 
     # Optimizer & LRScheduler
@@ -165,9 +171,9 @@ def main(
     accelerator.print('Training finished')
 
     accelerator.print('Saving model')
-    unwrapped_model = cast(EmbedderForTrain, accelerator.unwrap_model(model))
+    cast(EmbedderForTrain, accelerator.unwrap_model(model))
 
-    unwrapped_model.embedder.save_pretrained(output_dir / 'model')
+    embedder.save_pretrained(output_dir / 'model')
     tokenizer.save_pretrained(output_dir / 'model')
 
 

@@ -14,6 +14,7 @@ from uniem.model import (
     EmbedderForTripletInBatchNegTrain,
     InBatchNegLossType,
     PoolingStrategy,
+    create_uniem_embedder,
 )
 from uniem.trainer import Trainer
 from uniem.types import MixedPrecisionType
@@ -27,9 +28,10 @@ def main(
     model_name_or_path: str,
     medi_data_file: Path,
     # Model
+    model_class: Annotated[Optional[str | None], typer.Option(rich_help_panel='Model')] = None,
     temperature: Annotated[float, typer.Option(rich_help_panel='Model')] = 0.05,
     loss_type: Annotated[InBatchNegLossType, typer.Option(rich_help_panel='Model')] = InBatchNegLossType.softmax,
-    embedding_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
+    pooling_strategy: Annotated[PoolingStrategy, typer.Option(rich_help_panel='Model')] = PoolingStrategy.last_mean,
     add_swap_loss: Annotated[bool, typer.Option(rich_help_panel='Model')] = False,
     # Data
     batch_size: Annotated[int, typer.Option(rich_help_panel='Data')] = 32,
@@ -102,22 +104,24 @@ def main(
     train_dataloader = accelerator.prepare(train_dataloader)
 
     # Model
+    embedder = create_uniem_embedder(
+        model_name_or_path=model_name_or_path,
+        pooling_strategy=pooling_strategy,
+        model_class=model_class,
+    )
     if pair_or_triplet == 'triplet':
         model = EmbedderForTripletInBatchNegTrain(
-            model_name_or_path=model_name_or_path,
-            temperature=temperature,
-            loss_type=loss_type,
-            embedding_strategy=embedding_strategy,
+            embedder=embedder,
             add_swap_loss=add_swap_loss,
+            loss_type=loss_type,
         )
     else:
         model = EmbedderForPairInBatchNegTrain(
-            model_name_or_path=model_name_or_path,
-            temperature=temperature,
+            embedder=embedder,
             loss_type=loss_type,
-            embedding_strategy=embedding_strategy,
         )
-    model.embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
+
+    embedder.encoder.config.pad_token_id = tokenizer.pad_token_id
     model = accelerator.prepare(model)
 
     # Optimizer & LRScheduler
@@ -155,9 +159,9 @@ def main(
     accelerator.print('Training finished')
 
     accelerator.print('Saving model')
-    unwrapped_model = cast(EmbedderForTrain, accelerator.unwrap_model(model))
+    cast(EmbedderForTrain, accelerator.unwrap_model(model))
 
-    unwrapped_model.embedder.save_pretrained(output_dir / 'model')
+    embedder.save_pretrained(output_dir / 'model')
     tokenizer.save_pretrained(output_dir / 'model')
 
 

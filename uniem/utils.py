@@ -1,39 +1,74 @@
 import functools
 import gc
+import importlib
 import json
 import logging
+from enum import Enum
 from functools import wraps
 from itertools import islice
 from pathlib import Path
-from typing import Annotated, Any, Callable, Generator, Iterable, Optional, TypeVar
+from typing import Annotated, Any, Callable, Generator, Iterable, Optional, Sequence, Type, TypeVar, cast
 
 import torch
 import typer
 import yaml
 from accelerate.utils.memory import should_reduce_batch_size
+from transformers import AutoModel, PreTrainedModel
 
 T = TypeVar('T')
 logger = logging.getLogger(__name__)
 
 
-def load_from_config_file(config_file: str | Path) -> dict[str, Any]:
-    config_file = str(config_file)
-    if config_file.endswith('.yaml') or config_file.endswith('.yml'):
-        with open(config_file, 'r') as f:
-            config = yaml.safe_load(f)
-    elif config_file.endswith('.json'):
-        with open(config_file, 'r') as f:
-            config = json.load(f)
+class ConfigFileType(str, Enum):
+    yaml = 'yaml'
+    json = 'json'
+
+
+def load_from_yaml(yaml_file: str | Path) -> dict[str, Any]:
+    yaml_file = Path(yaml_file)
+    if not yaml_file.exists():
+        raise FileExistsError(f'File {yaml_file} does not exist')
+
+    with open(yaml_file, 'r') as f:
+        return yaml.safe_load(f)
+
+
+def load_from_json(json_file: str | Path) -> dict[str, Any]:
+    json_file = Path(json_file)
+    if not json_file.exists():
+        raise FileExistsError(f'File {json_file} does not exist')
+
+    with open(json_file, 'r') as f:
+        return json.load(f)
+
+
+def load_config_file(config_file: str | Path, file_type: ConfigFileType | str | None = None) -> dict[str, Any]:
+    config_file = Path(config_file)
+
+    if file_type is None:
+        file_name = config_file.name
+        if file_name.endswith('.yaml') or file_name.endswith('.yml'):
+            file_type = ConfigFileType.yaml
+        elif file_name.endswith('.json'):
+            file_type = ConfigFileType.json
+        else:
+            raise ValueError(f'Unknown config file format: {config_file}, only .yaml, .yml and .json are supported')
     else:
-        raise ValueError(f'Unknown config file format: {config_file}, only .yaml, .yml and .json are supported')
+        file_type = ConfigFileType(file_type)
+
+    match file_type:
+        case ConfigFileType.yaml:
+            config = load_from_yaml(config_file)
+        case ConfigFileType.json:
+            config = load_from_json(config_file)
     return config
 
 
-def config_file_callback(ctx: typer.Context, param: typer.CallbackParam, param_value: Any):
+def _config_file_callback(ctx: typer.Context, param: typer.CallbackParam, param_value: Any):
     if param_value is None:
         return param_value
     try:
-        config = load_from_config_file(param_value)
+        config = load_config_file(param_value)
         ctx.default_map = ctx.default_map or {}
         ctx.default_map.update(config)
     except Exception as e:
@@ -43,20 +78,38 @@ def config_file_callback(ctx: typer.Context, param: typer.CallbackParam, param_v
 
 ConfigFile = Annotated[
     Optional[Path],
-    typer.Option(..., callback=config_file_callback, is_eager=True, help='Config file path, supports yaml and json'),
+    typer.Option(..., callback=_config_file_callback, is_eager=True, help='Config file path, supports yaml and json'),
 ]
 
 
-def create_adamw_optimizer(model: torch.nn.Module, lr: float, weight_decay=1e-3):
+def load_hf_pretrained_model(
+    model_name_or_path: str, model_class: str | None | Type[PreTrainedModel] | Type[AutoModel] = None
+) -> PreTrainedModel:
+    if model_class is None:
+        model_class = AutoModel
+    elif isinstance(model_class, str):
+        transformers_module = importlib.import_module('transformers')
+        model_class = getattr(transformers_module, model_class)
+
+    model = model_class.from_pretrained(model_name_or_path)  # type: ignore
+    model = cast(PreTrainedModel, model)
+    return model
+
+
+def create_adamw_optimizer(
+    model: torch.nn.Module,
+    lr: float,
+    weight_decay: float = 1e-3,
+    no_decay_keywords: Sequence[str] = ('bias', 'LayerNorm', 'layernorm'),
+):
     parameters = list(model.named_parameters())
-    no_decay = ['bias', 'LayerNorm', 'layernorm']
     optimizer_grouped_parameters = [
         {
-            'params': [p for n, p in parameters if not any(nd in n for nd in no_decay)],
+            'params': [p for n, p in parameters if not any(nd in n for nd in no_decay_keywords)],
             'weight_decay': weight_decay,
         },
         {
-            'params': [p for n, p in parameters if any(nd in n for nd in no_decay)],
+            'params': [p for n, p in parameters if any(nd in n for nd in no_decay_keywords)],
             'weight_decay': 0.0,
         },
     ]
@@ -64,18 +117,14 @@ def create_adamw_optimizer(model: torch.nn.Module, lr: float, weight_decay=1e-3)
     return optimizer
 
 
+def create_attention_mask_from_input_ids(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
+    return input_ids != pad_token_id
+
+
 def generate_batch(data: Iterable[T], batch_size: int = 32) -> Generator[list[T], None, None]:
     iterator = iter(data)
     while batch := list(islice(iterator, batch_size)):
         yield batch
-
-
-def apply_bitfit(model: torch.nn.Module):
-    for name, param in model.named_parameters():
-        if 'bias' in name:
-            param.requires_grad = True
-        else:
-            param.requires_grad = False
 
 
 def split_dataset_dict(dataset_dict: dict[str, T]) -> tuple[T, T | None]:
@@ -130,7 +179,7 @@ def find_executable_batch_size(function: Callable | None = None, starting_batch_
     return decorator
 
 
-def convert_to_readable_string(number: float) -> str:
+def convert_number_to_readable_string(number: float) -> str:
     if number >= 1e9:
         return f'{number / 1e9:.1f}B'
     elif number >= 1e6:

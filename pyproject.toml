@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "uniem"
-version = "0.2.4.post1"
+version = "0.3.0"
 description = "unified embedding model"
 authors = ["wangyuxin <wangyuxin@mokahr.com>"]
 license = "MIT"
@@ -25,6 +25,7 @@ pyright = "^1.1.314"
 mteb = "^1.0.2"
 openai = "^0.27.8"
 sentence-transformers = "^2.2.2"
+text2vec = "^1.2.1"
 
 [tool.ruff]
 line-length = 128
