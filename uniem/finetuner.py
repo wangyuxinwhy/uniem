@@ -98,8 +98,6 @@ class FineTuner:
         model_type: ModelType | str | None = None,
         record_type: RecordType | str | None = None,
     ):
-        model_type = ModelType(model_type)
-
         if model_type is None:
             if 'sentence-transformers' in model_name_or_path:
                 model_type = ModelType.sentence_transformers
@@ -110,6 +108,8 @@ class FineTuner:
             else:
                 model_type = ModelType.huggingface
             logger.info(f'Auto detect model type: {model_type}')
+        else:
+            model_type = ModelType(model_type)
 
         match model_type:
             case ModelType.uniem:
