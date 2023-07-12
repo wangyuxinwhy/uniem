@@ -74,17 +74,17 @@ python run_mteb_zh.py --help
 
 评测 M3E-base 模型
 ```bash
-python run_mteb_zh --model-type sentence_transformer --model-id moka-ai/m3e-base
+python run_mteb_zh.py --model-type sentence_transformer --model-id moka-ai/m3e-base
 ```
 
 评测 UER 模型
 ```bash
-python run_mteb_zh --model-type sentence_transformer --model-id uer/sbert-base-chinese-nli
+python run_mteb_zh.py --model-type sentence_transformer --model-id uer/sbert-base-chinese-nli
 ```
 
 评测 ErLangShen 模型
 ```bash
-python run_mteb_zh --model-type erlangshen
+python run_mteb_zh.py --model-type erlangshen
 ```
 
 ## 评测你的模型

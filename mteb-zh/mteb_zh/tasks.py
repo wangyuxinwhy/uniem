@@ -220,7 +220,7 @@ class T2RReranking(AbsTaskReranking):
     @property
     def description(self):
         return {
-            'name': 'T2Reranking',
+            'name': 'T2RReranking',
             'reference': 'https://huggingface.co/datasets/THUIR/T2Ranking',
             'type': 'Reranking',
             'category': 's2s',
@@ -280,7 +280,7 @@ class T2RRetrieval(AbsTaskRetrieval):
     @property
     def description(self):
         return {
-            'name': 'T2RankingRetrieval',
+            'name': 'T2RRetrieval',
             'reference': 'https://huggingface.co/datasets/THUIR/T2Ranking',
             'type': 'Retrieval',
             'category': 's2p',
