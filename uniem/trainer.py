@@ -5,9 +5,13 @@ from typing import Any, Sized
 import torch
 from accelerate import Accelerator
 from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
+
+try:
+    from torch.optim.lr_scheduler import LRScheduler
+except ImportError:
+    from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
 
 
 class Trainer:
