@@ -49,9 +49,17 @@ finetuner = FineTuner.from_pretrained('moka-ai/m3e-small', dataset=dataset)
 finetuner.run(epochs=3)
 ```
 
-微调的模型详见 [uniem 微调教程](https://github.com/wangyuxinwhy/uniem/blob/main/examples/finetune.ipynb) or <a target="_blank" href="https://colab.research.google.com/github/wangyuxinwhy/uniem/blob/main/examples/finetune.ipynb">
+微调模型详见 [uniem 微调教程](https://github.com/wangyuxinwhy/uniem/blob/main/examples/finetune.ipynb) or <a target="_blank" href="https://colab.research.google.com/github/wangyuxinwhy/uniem/blob/main/examples/finetune.ipynb">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
+
+
+如果您想要在本地运行，您需要运行如下命令，准备环境
+
+```bash
+conda create -n uniem python=3.10
+pip install uniem
+```
 
 ## 💯 MTEB-zh
 
