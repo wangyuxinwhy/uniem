@@ -2,7 +2,7 @@ import logging
 import os
 from enum import Enum
 from pathlib import Path
-from typing import Iterable, Sequence, Sized, cast
+from typing import Callable, Iterable, Sequence, Sized, cast
 
 import torch
 from accelerate import Accelerator
@@ -234,6 +234,7 @@ class FineTuner:
         max_length: int = 512,
         drop_last: bool = False,
         shuffle: bool = False,
+        num_workers: int = 0,
         # Trainer
         epochs: int = 3,
         mixed_precision: MixedPrecisionType = MixedPrecisionType.no,
@@ -241,8 +242,8 @@ class FineTuner:
         save_on_epoch_end: bool = False,
         num_max_checkpoints: int = 1,
         log_with: str | LoggerType | GeneralTracker | list[str | LoggerType | GeneralTracker] | None = None,
-        num_workers: int = 0,
         seed: int = 42,
+        epoch_end_callbacks: Sequence[Callable[[Trainer], None]] | None = None,
         output_dir: Path | str | None = None,
     ):
 
@@ -325,6 +326,7 @@ class FineTuner:
             lr_scheduler=lr_scheduler,
             log_interval=10,
             save_on_epoch_end=save_on_epoch_end,
+            epoch_end_callbacks=epoch_end_callbacks,
         )
         accelerator.print(f'Start training for {epochs} epochs')
         trainer.train()

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Sized
+from typing import Any, Callable, Sequence, Sized
 
 import torch
 from accelerate import Accelerator
@@ -27,7 +27,7 @@ class Trainer:
         lr_scheduler: LRScheduler | None = None,
         log_interval: int = 50,
         save_on_epoch_end: bool = True,
-        epoch_end_callbacks: list[Any] | None = None,
+        epoch_end_callbacks: Sequence[Callable[['Trainer'], None]] | None = None,
     ):
         self.model = model
         self.optimizer = optimizer
