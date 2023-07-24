@@ -2,7 +2,7 @@ import logging
 import os
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Iterable, Sequence, Sized, cast
+from typing import Any, Callable, Iterable, Sequence, Sized, cast
 
 import torch
 from accelerate import Accelerator
@@ -235,10 +235,12 @@ class FineTuner:
         drop_last: bool = False,
         shuffle: bool = False,
         num_workers: int = 0,
-        # Trainer
-        epochs: int = 3,
+        # Aceelerator
         mixed_precision: MixedPrecisionType = MixedPrecisionType.no,
         gradient_accumulation_steps: int = 1,
+        accelerator_kwargs: dict[str, Any] | None = None,
+        # Trainer
+        epochs: int = 3,
         save_on_epoch_end: bool = False,
         num_max_checkpoints: int = 1,
         log_with: str | LoggerType | GeneralTracker | list[str | LoggerType | GeneralTracker] | None = None,
@@ -257,11 +259,13 @@ class FineTuner:
             automatic_checkpoint_naming=True,
             total_limit=num_max_checkpoints,
         )
+        accelerator_kwargs = accelerator_kwargs or {}
         accelerator = Accelerator(
             mixed_precision=mixed_precision.value,
             gradient_accumulation_steps=gradient_accumulation_steps,
             project_config=project_config,
             log_with=log_with,
+            **accelerator_kwargs,
         )
         self.accelerator = accelerator
         accelerator.init_trackers('uniem')
