@@ -125,10 +125,10 @@ def main(
     )
 
     # hack dataloader for distributed training
-    train_dataloader.__dict__["batch_size"] = batch_size
+    train_dataloader.__dict__['batch_size'] = batch_size
     train_dataloader = accelerator.prepare(train_dataloader)
-    train_dataloader.__dict__["sampler"] = SequentialSampler(train_dataloader.dataset)
-    train_dataloader.__dict__["batch_sampler"] = None
+    train_dataloader.__dict__['sampler'] = SequentialSampler(train_dataloader.dataset)
+    train_dataloader.__dict__['batch_sampler'] = None
 
     embedder = create_uniem_embedder(
         model_name_or_path=model_name_or_path,
