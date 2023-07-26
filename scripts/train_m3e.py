@@ -7,7 +7,7 @@ from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration, set_seed
 from datasets import Dataset as HfDataset
 from datasets import concatenate_datasets, load_from_disk
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, SequentialSampler
 from transformers import AutoTokenizer, get_cosine_schedule_with_warmup  # type: ignore
 from uniem.data import M3EDataset, M3EHfDatsetWithInfo, PairCollator
 from uniem.model import (
@@ -91,16 +91,23 @@ def main(
         gradient_accumulation_steps=gradient_accumulation_steps,
         project_config=project_config,
         log_with=['tensorboard'] if use_tensorboard else None,
+        dispatch_batches=True,
+        split_batches=True,
     )
     accelerator.init_trackers('m3e')
+    accelerator.print(f'Parameters: {locals()}')
 
     set_seed(seed)
     accelerator.print(f'Start with seed: {seed}')
     accelerator.print(f'Output dir: {output_dir}')
+    if config_file:
+        accelerator.print(f'Config File: {config_file}')
 
     # DataLoader
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-    all_m3e_datasets = load_all_datasets(m3e_datasets_dir)
+    with accelerator.main_process_first():
+        all_m3e_datasets = load_all_datasets(m3e_datasets_dir)
+
     train_dataset = M3EDataset(
         all_m3e_datasets,
         batch_size=batch_size,
@@ -116,7 +123,12 @@ def main(
         num_workers=num_workers,
         pin_memory=True,
     )
+
+    # hack dataloader for distributed training
+    train_dataloader.__dict__['batch_size'] = batch_size
     train_dataloader = accelerator.prepare(train_dataloader)
+    train_dataloader.__dict__['sampler'] = SequentialSampler(train_dataloader.dataset)
+    train_dataloader.__dict__['batch_sampler'] = None
 
     embedder = create_uniem_embedder(
         model_name_or_path=model_name_or_path,
