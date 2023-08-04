@@ -116,7 +116,7 @@ class OpenAIModel:
         self.max_length = max_length
 
     def encode(self, sentences: list[str], batch_size: int = 32, **kwargs) -> list[np.ndarray]:
-        sentences = [sentence[:self.max_length] for sentence in sentences]
+        sentences = [sentence[: self.max_length] for sentence in sentences]
         all_embeddings = []
         for batch in tqdm(
             generate_batch(sentences, batch_size),
@@ -141,7 +141,7 @@ class AzureModel:
         self.max_length = max_length
 
     def encode(self, sentences: list[str], batch_size: int = 32, **kwargs) -> list[np.ndarray]:
-        sentences = [sentence[:self.max_length] for sentence in sentences]
+        sentences = [sentence[: self.max_length] for sentence in sentences]
         all_embeddings = []
         for text in tqdm(sentences):
             output = self._client(input=text, engine=self.model_name)
