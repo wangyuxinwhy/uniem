@@ -107,13 +107,16 @@ class OpenAIModel:
         self,
         api_key: Optional[str] = None,
         model_name: str = 'text-embedding-ada-002',
+        max_length: int = 4000,
     ) -> None:
         if api_key is not None:
             openai.api_key = api_key
         self._client = openai.Embedding.create
         self.model_name = model_name
+        self.max_length = max_length
 
     def encode(self, sentences: list[str], batch_size: int = 32, **kwargs) -> list[np.ndarray]:
+        sentences = [sentence[: self.max_length] for sentence in sentences]
         all_embeddings = []
         for batch in tqdm(
             generate_batch(sentences, batch_size),
@@ -128,15 +131,17 @@ class OpenAIModel:
 
 
 class AzureModel:
-    def __init__(self, model_name: str = 'text-embedding-ada-002') -> None:
+    def __init__(self, model_name: str = 'text-embedding-ada-002', max_length: int = 4000) -> None:
         openai.api_type = 'azure'
         openai.api_key = os.environ['AZURE_API_KEY']
         openai.api_base = os.environ['AZURE_API_BASE']
         openai.api_version = '2023-03-15-preview'
         self._client = openai.Embedding.create
         self.model_name = model_name
+        self.max_length = max_length
 
     def encode(self, sentences: list[str], batch_size: int = 32, **kwargs) -> list[np.ndarray]:
+        sentences = [sentence[: self.max_length] for sentence in sentences]
         all_embeddings = []
         for text in tqdm(sentences):
             output = self._client(input=text, engine=self.model_name)
