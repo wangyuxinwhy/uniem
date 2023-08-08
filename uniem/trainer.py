@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import logging
+import os
+import re
+import shutil
 from typing import Any, Callable, Sequence, Sized
 
 import torch
@@ -12,6 +16,8 @@ try:
     from torch.optim.lr_scheduler import LRScheduler
 except ImportError:
     from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
+
+logger = logging.getLogger(__name__)
 
 
 class Trainer:
@@ -89,7 +95,7 @@ class Trainer:
                 self.accelerator.log(validation_metrics, step=current_epoch)
 
             if self.save_on_epoch_end:
-                self.accelerator.save_state()
+                self.accelerator.save_state(self.get_checkpoint_dir())
 
             if self.epoch_end_callbacks:
                 for callback in self.epoch_end_callbacks:
@@ -104,6 +110,34 @@ class Trainer:
     @staticmethod
     def add_prefix(values: dict[str, Any], prefix: str):
         return {f'{prefix}/{k}': v for k, v in values.items()}
+
+    def get_checkpoint_dir(self):
+        # COPY FROM accelerator to fix Checkpoint bug
+        self.accelerator.project_configuration.automatic_checkpoint_naming = False
+        output_dir = os.path.join(self.accelerator.project_dir, 'checkpoints')
+        if self.accelerator.is_local_main_process:
+            os.makedirs(output_dir, exist_ok=True)
+            folders = [os.path.join(output_dir, folder) for folder in os.listdir(output_dir)]
+            if self.accelerator.project_configuration.total_limit is not None and (
+                len(folders) + 1 > self.accelerator.project_configuration.total_limit
+            ):
+
+                def _inner(folder):
+                    return list(map(int, re.findall(r'[\/]?([0-9]+)(?=[^\/]*$)', folder)))[0]
+
+                folders.sort(key=_inner)
+                logger.warning(
+                    f'Deleting {len(folders) + 1 - self.accelerator.project_configuration.total_limit}'
+                    'checkpoints to make room for new checkpoint.'
+                )
+                for folder in folders[: len(folders) + 1 - self.accelerator.project_configuration.total_limit]:
+                    shutil.rmtree(folder)
+
+        output_dir = os.path.join(output_dir, f'checkpoint_{self.accelerator.save_iteration}')
+        if self.accelerator.is_local_main_process:
+            os.makedirs(output_dir, exist_ok=True)
+        logger.info(f'Saving current state to {output_dir}')
+        return output_dir
 
 
 def evaluate(
