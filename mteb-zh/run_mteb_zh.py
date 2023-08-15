@@ -3,7 +3,7 @@ from typing import Annotated
 
 import typer
 from mteb import MTEB, AbsTask
-from mteb_zh.models import ModelType, load_model
+from mteb_zh.models import ModelType, load_model, DeviceType
 from mteb_zh.tasks import (
     GubaEastmony,
     IFlyTek,
@@ -47,9 +47,10 @@ def main(
     task_type: TaskType = TaskType.Classification,
     task_name: str | None = None,
     output_folder: Path = Path('results'),
+    device: DeviceType | None = None
 ):
     output_folder = Path(output_folder)
-    model = load_model(model_type, model_id)
+    model = load_model(model_type, model_id, device)
 
     if task_name:
         tasks = filter_by_name(task_name)

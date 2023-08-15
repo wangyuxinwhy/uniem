@@ -30,12 +30,18 @@ class ModelType(str, Enum):
     azure = 'azure'
 
 
-def load_model(model_type: ModelType, model_id: str | None = None) -> MTEBModel:
+class DeviceType(str, Enum):
+    cpu = 'cpu'
+    cuda = 'cuda'
+    mps = 'mps'
+
+
+def load_model(model_type: ModelType, model_id: str | None = None, device: DeviceType | None = None) -> MTEBModel:
     match model_type:
         case ModelType.sentence_transformer:
             if model_id is None:
                 raise ValueError('model_name must be specified for sentence_transformer')
-            return SentenceTransformer(model_id)
+            return SentenceTransformer(model_id, device=device)
         case ModelType.text2vec:
             try:
                 from text2vec import SentenceModel  # type: ignore
@@ -43,9 +49,9 @@ def load_model(model_type: ModelType, model_id: str | None = None) -> MTEBModel:
                 raise ImportError('text2vec is not installed, please install it with "pip install text2vec"')
 
             if model_id is None:
-                return SentenceModel()
+                return SentenceModel(device=device)
             else:
-                return SentenceModel(model_id)
+                return SentenceModel(model_id, device=device)
         case ModelType.openai:
             if model_id is None:
                 return OpenAIModel(model_name='text-embedding-ada-002')
@@ -58,14 +64,14 @@ def load_model(model_type: ModelType, model_id: str | None = None) -> MTEBModel:
                 return AzureModel(model_name=model_id)
         case ModelType.luotuo:
             if model_id is None:
-                return LuotuoBertModel(model_name='silk-road/luotuo-bert')
+                return LuotuoBertModel(model_name='silk-road/luotuo-bert', device=device)
             else:
-                return LuotuoBertModel(model_name=model_id)
+                return LuotuoBertModel(model_name=model_id, device=device)
         case ModelType.erlangshen:
             if model_id is None:
-                return ErLangShenModel(model_name='IDEA-CCNL/Erlangshen-SimCSE-110M-Chinese')
+                return ErLangShenModel(model_name='IDEA-CCNL/Erlangshen-SimCSE-110M-Chinese', device=device)
             else:
-                return ErLangShenModel(model_name=model_id)
+                return ErLangShenModel(model_name=model_id, device=device)
         case ModelType.minimax:
             if model_id is None:
                 return MiniMaxModel()
