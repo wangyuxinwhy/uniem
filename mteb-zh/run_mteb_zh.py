@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Optional
 
 import typer
 from mteb import MTEB, AbsTask
@@ -43,11 +43,11 @@ def filter_by_type(task_type: TaskType):
 
 def main(
     model_type: Annotated[ModelType, typer.Option()],
-    model_id: str | None = None,
+    model_id: Optional[str] = None,
     task_type: TaskType = TaskType.Classification,
-    task_name: str | None = None,
+    task_name: Optional[str] = None,
     output_folder: Path = Path('results'),
-    device: DeviceType | None = None,
+    device: Optional[DeviceType] = None,
 ):
     output_folder = Path(output_folder)
     model = load_model(model_type, model_id, device)
