@@ -102,3 +102,12 @@ pip install uniem
 ## 📜 License
 
 uniem is licensed under the Apache-2.0 License. See the LICENSE file for more details.
+
+## 🏷 Citation
+
+Please cite this model using the following format:
+
+@software {Moka Massive Mixed Embedding,
+author = {Wang Yuxin,Sun Qingxuan,He sicheng},
+title = {M3E: Moka Massive Mixed Embedding Model},
+year = {2023} }
